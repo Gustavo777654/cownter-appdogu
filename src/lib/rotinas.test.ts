@@ -10,9 +10,9 @@ import {
   diasParaVencer,
   proximaData,
 } from "./rotinas";
-import type { Lote, Tarefa } from "./types";
+import type { Pasto, Tarefa } from "./types";
 
-function lote(extra: Partial<Lote> = {}): Lote {
+function pasto(extra: Partial<Pasto> = {}): Pasto {
   return {
     id: "l1",
     nome: "Pasto Norte",
@@ -36,7 +36,7 @@ function lote(extra: Partial<Lote> = {}): Lote {
 function tarefa(extra: Partial<Tarefa> = {}): Tarefa {
   return {
     id: "t1",
-    loteId: "l1",
+    pastoId: "l1",
     titulo: "Arrumar a cerca",
     observacao: "",
     prazo: "",
@@ -109,7 +109,7 @@ describe("alertas da tela inicial", () => {
   const hoje = "2026-10-23";
 
   it("lista rotinas atrasadas, de hoje e dos próximos 7 dias, da mais urgente para a menos", () => {
-    const l = lote({
+    const l = pasto({
       remedioUltimaData: "2026-04-26", // +6 meses = 26/10 (daqui a 3 dias)
       remedioIntervaloMeses: 6,
       salUltimaData: "2026-09-18", // +30 dias = 18/10 (atrasado 5 dias)
@@ -128,7 +128,7 @@ describe("alertas da tela inicial", () => {
   });
 
   it("não mostra o que está longe (mais de 7 dias) nem rotina sem intervalo", () => {
-    const l = lote({
+    const l = pasto({
       remedioUltimaData: "2026-10-01",
       remedioIntervaloMeses: 6,
       salUltimaData: "2026-10-01", // sem intervalo
@@ -138,14 +138,14 @@ describe("alertas da tela inicial", () => {
 
   it("inclui tarefas abertas com prazo, e ignora concluídas, sem prazo e de pasto inexistente", () => {
     const alertas = coletarAlertas(
-      [lote()],
+      [pasto()],
       [
         tarefa({ id: "a", titulo: "Jogar adubo", prazo: "2026-10-22" }),
         tarefa({ id: "b", titulo: "Roçar", prazo: "2026-10-25" }),
         tarefa({ id: "c", titulo: "Já feita", prazo: "2026-10-22", feita: true }),
         tarefa({ id: "d", titulo: "Sem prazo", prazo: "" }),
         tarefa({ id: "e", titulo: "Longe", prazo: "2026-12-01" }),
-        tarefa({ id: "f", titulo: "Pasto sumiu", loteId: "outro", prazo: "2026-10-22" }),
+        tarefa({ id: "f", titulo: "Pasto sumiu", pastoId: "outro", prazo: "2026-10-22" }),
       ],
       hoje
     );
@@ -154,6 +154,6 @@ describe("alertas da tela inicial", () => {
       ["Jogar adubo", "Roçar"]
     );
     assert.equal(alertas[0].dias, -1);
-    assert.equal(alertas[0].loteNome, "Pasto Norte");
+    assert.equal(alertas[0].pastoNome, "Pasto Norte");
   });
 });

@@ -5,7 +5,7 @@ Projeto de TCC, evolução do site Cownter desenvolvido na faculdade.
 
 - **Mobile-first:** navegação na base da tela, botões grandes, formulários em painéis que sobem de baixo.
 - **Offline-first:** os dados ficam no aparelho (IndexedDB) e o app inteiro é guardado em cache (PWA).
-- **Foco em gado:** cadastro de animais (com pasto e vacinas já aplicadas), pastos com rodízio, remédio, sal, tarefas e observações.
+- **Foco em gado:** lotes de gado (com composição por sexo e categoria, vacinas e cabeças opcionais), pastos com rodízio, remédio, sal, tarefas e observações.
 
 ## Como rodar
 
@@ -24,9 +24,9 @@ npm start          # http://localhost:3000
 ```
 
 1. Abra `http://localhost:3000` e entre com a conta de demonstração (`demo@cownter.com` / `demo123`).
-2. Navegue pelas telas (Início, Rebanho, Vacinas, Mais) para o app ser guardado em cache.
+2. Navegue pelas telas (Início, Gado, Pastos, Recursos, Finanças e o perfil) para o app ser guardado em cache.
 3. No Chrome: DevTools > Application > Service Workers > marque **Offline** (ou ligue o modo avião no celular).
-4. Recarregue a página e cadastre um animal. Tudo continua funcionando e fica salvo no aparelho.
+4. Recarregue a página e cadastre um lote de gado. Tudo continua funcionando e fica salvo no aparelho.
 
 > Instalar o app na tela inicial e usar o service worker exigem **HTTPS ou localhost**.
 > Para testar no celular, use o Chrome do computador em `chrome://inspect` com o aparelho
@@ -35,21 +35,28 @@ npm start          # http://localhost:3000
 ### Testes automatizados
 
 ```bash
-npm test           # 44 testes: animais, pastos, rodízio, rotinas, alertas, datas e migração do banco
+npm test           # 46 testes: lotes de gado, cabeças, pastos, rodízio, rotinas, alertas, datas e migração do banco
 ```
 
-## Pastos (lotes), rotinas e rodízio
+## Lotes de gado, pastos e rotinas
 
-- **Lote = pasto.** Cada animal fica em um único pasto por vez. Dá para mover animais escolhidos para um pasto
-  ("Trazer animais") ou mover o pasto inteiro para outro ("Mover todos"), que é o gesto do rodízio.
-- **Reservar para descanso.** Só é possível reservar um pasto vazio, e um pasto reservado não recebe animais até ser
-  liberado. A tela de lotes mostra há quantos dias cada pasto está em uso ou descansando.
+- **Lote de gado = um grupo de animais.** O produtor cadastra o lote inteiro (nome + composição). A composição é uma lista de
+  linhas de **sexo + categoria + quantidade**: fêmea (bezerra, vitela, novilha, vaca atrasada, vaca mojando, vaca parida) ou
+  macho (bezerro, garrote, boi, touro). Lote misto tem mais de uma linha, e o total de cabeças é a soma.
+- **Cabeça por cabeça (opcional):** dentro do lote dá para cadastrar uma cabeça com brinco, cor ou nome. O total do lote nunca
+  fica menor que o número de cabeças cadastradas.
+- **Vacinas do lote (opcional):** nome, aplicada ou não, data e quantas cabeças faltam.
+- **Pasto = o terreno.** Cada lote fica em um único pasto, ou sem pasto. Pela tela do pasto, **Mover lote** lista os lotes:
+  um lote que já está lá pede o pasto de destino; um lote de fora vem para o pasto.
+- **Reservar para descanso.** Só é possível reservar um pasto sem lotes, e um pasto reservado não recebe lotes até ser liberado.
 - **Nível do pasto:** Alto, Médio ou Baixo (quantidade de capim), com a data da última atualização.
-- **Rotinas:** remédio (repete a cada N **meses**) e sal (repete a cada N **dias**). O produtor informa a última vez e o
-  intervalo; o app calcula a próxima e mostra "Em 3 dias" ou "Atrasado há 5 dias". "Feito hoje" reinicia a contagem.
+- **Rotinas do pasto:** remédio (repete a cada N **meses**) e sal (repete a cada N **dias**). O app calcula a próxima data e mostra
+  "Em 3 dias" ou "Atrasado há 5 dias". "Feito hoje" reinicia a contagem.
 - **Tarefas** (arrumar cerca, jogar adubo, roçar, jogar veneno...) com prazo opcional e **observações** por pasto.
-- **Vacinas já aplicadas:** lista (nome + data opcional) no cadastro de cada animal.
-- **Tela inicial:** bloco "Para fazer" com o que está atrasado, é para hoje ou vence nos próximos 7 dias.
+- **Tela inicial:** total de cabeças, de lotes e de pastos (em uso e descansando), e o bloco "Para fazer" com o que está atrasado,
+  é para hoje ou vence nos próximos 7 dias.
+- **Perfil:** o ícone no topo das telas abre os dados da conta, o estado da conexão e o botão de sair.
+- **Recursos e Finanças:** telas reservadas, chegam nas próximas etapas.
 
 > **Avisos (notificações):** hoje os avisos aparecem **dentro do app**, na tela inicial e nos pastos. Notificação com o
 > app fechado e sem internet exige o app Android (APK com Capacitor), que agenda os avisos no próprio aparelho. Está no
@@ -59,18 +66,19 @@ npm test           # 44 testes: animais, pastos, rodízio, rotinas, alertas, dat
 
 | Camada | O que faz | Onde está |
 | --- | --- | --- |
-| Banco local | Todas as telas leem e gravam no IndexedDB (via Dexie), nunca direto na internet | `src/lib/db.ts`, `src/lib/animals.ts`, `src/lib/lotes.ts` |
+| Banco local | Todas as telas leem e gravam no IndexedDB (via Dexie), nunca direto na internet | `src/lib/db.ts`, `src/lib/gado.ts`, `src/lib/pastos.ts` |
 | Cache do app | Service worker (Serwist) guarda páginas, scripts, fontes e ícones | `src/app/sw.ts`, `next.config.mjs` |
 | Sincronização *(próxima etapa)* | Registros alterados offline ficam com `syncStatus = "pending"` e serão enviados ao servidor quando houver conexão | campos `id` (UUID), `updatedAt`, `deletedAt`, `syncStatus` em `src/lib/types.ts` |
 
 Decisões de projeto:
 
 - **IDs UUID gerados no aparelho**, para dois celulares offline nunca criarem o mesmo id.
-- **Exclusão lógica** (`deletedAt`): o servidor precisa saber que o animal foi removido quando o aparelho voltar a ter internet.
+- **Exclusão lógica** (`deletedAt`): o servidor precisa saber que o registro foi removido quando o aparelho voltar a ter internet.
 - **Fontes empacotadas no app** (`@fontsource`), sem depender do Google Fonts, que falharia offline.
-- **Banco com versões e migração:** a versão 2 acrescentou pastos, tarefas e observações e converte os animais já cadastrados
-  (entram sem pasto e sem vacinas), então quem já usou o app não perde dados. Há teste automatizado disso.
-- **Rota `/lote?id=...` em vez de `/lotes/[id]`:** uma rota fixa pode ser guardada em cache e abrir offline para qualquer pasto.
+- **Banco com versões e migração:** a versão 3 separou lote de gado (grupo de animais) de pasto (terreno): os pastos, as tarefas e
+  as observações antigos são preservados; os animais soltos da versão 2 não têm equivalente e o produtor cadastra os lotes de novo.
+  Há teste automatizado da migração.
+- **Rotas `/lote?id=...` (lote de gado) e `/pasto?id=...` (pasto) em vez de `/lote/[id]`:** uma rota fixa pode ser guardada em cache e abrir offline para qualquer registro.
 - **Sem recarga automática ao voltar a internet:** por padrão o Serwist recarrega a página quando o sinal volta, o que
   faria o produtor perder um cadastro em andamento. Foi desligado (`reloadOnOnline: false`).
 - **Login local provisório:** validado no aparelho para funcionar offline. Será substituído por autenticação real com o backend.
@@ -80,17 +88,17 @@ Decisões de projeto:
 ```
 src/
   app/
-    (app)/            telas protegidas: inicio, rebanho, lotes, lote, vacinas, mais
+    (app)/            telas protegidas: inicio, gado, lote, pastos, pasto, recursos, financas, perfil
     login/            tela de login
     sw.ts             service worker
     manifest.ts       manifesto do PWA (nome, cores, ícones)
   components/
-    animals/          cartão, formulário (com pasto e vacinas), detalhes e confirmação de exclusão
-    lotes/            cartão do pasto, rotinas (remédio/sal), tarefas, observações e mover animais
-    layout/           barra inferior, aviso offline, cabeçalho de página
-    ui/               painel (bottom sheet), selo de status, logo
+    gado/             cartão do lote, formulário (composição e vacinas), cabeças cadastradas
+    pastos/           cartão do pasto, rotinas (remédio/sal), tarefas, observações, mover lote
+    layout/           barra inferior, ícone de perfil, aviso offline, cabeçalho de página
+    ui/               painel (bottom sheet), confirmação, mensagem de erro, controles
   contexts/           autenticação
-  lib/                banco local, regras de animais e pastos, datas das rotinas, hooks, utilitários e testes
+  lib/                banco local, regras de lotes de gado e pastos, datas das rotinas, hooks, utilitários e testes
 ```
 
 ## Roadmap
@@ -98,9 +106,11 @@ src/
 - [x] Base mobile + PWA com a identidade visual do Cownter
 - [x] Banco local, cadastro / edição / exclusão de animais offline
 - [x] Pastos: rodízio, reserva para descanso, nível do pasto, remédio, sal, tarefas e observações
-- [x] Pasto e vacinas já aplicadas no cadastro do animal
-- [ ] Vacinações (calendário, próximos vencimentos, vacinação em lote)
-- [ ] Natalidade e morte, compra e venda, estoque sanitário
+- [x] Lotes de gado (composição por sexo e categoria, cabeças opcionais, vacinas) e pastos que recebem lotes
+- [x] Perfil no topo e totais de cabeças e pastos na tela inicial
+- [ ] Parto, bezerro ao pé e desmama (com avisos)
+- [ ] Recursos: estoque de suplementos e remédios, baixa ao marcar sal e remédio, consumo por pasto
+- [ ] Finanças: compras e vendas de gado, despesas, resumo e gráficos por mês, ano e pasto
 - [ ] Backend, login real e fila de sincronização (tratamento de conflitos)
 - [ ] Assinatura mensal com licença que funciona offline (prazo de tolerância)
 - [ ] Notificações no aparelho (APK com Capacitor)

@@ -1,8 +1,8 @@
-import { criarAnimal } from "./animals";
 import { db } from "./db";
-import { criarLote, criarNota, criarTarefa } from "./lotes";
+import { criarCabeca, criarLoteGado } from "./gado";
+import { criarNota, criarPasto, criarTarefa } from "./pastos";
 import { addDias, addMeses } from "./rotinas";
-import type { AnimalInput, Lote } from "./types";
+import type { LoteGadoInput, Pasto } from "./types";
 import { hoje } from "./utils";
 
 const chave = (s: string) => s.trim().toLowerCase();
@@ -10,29 +10,29 @@ const chave = (s: string) => s.trim().toLowerCase();
 /**
  * Dados de exemplo para demonstração e testes: 3 pastos (um deles reservado,
  * descansando), rotinas com datas relativas a hoje (para já aparecerem alertas),
- * tarefas e um rebanho de 5 animais. Ignora o que já existe com o mesmo nome/brinco.
- * Retorna quantos animais foram criados.
+ * tarefas e 4 lotes de gado (um misto, um sem pasto e separado para venda).
+ * Ignora o que já existe com o mesmo nome. Retorna quantos lotes de gado foram criados.
  */
 export async function carregarDadosExemplo(): Promise<number> {
   const h = hoje();
   const dias = (n: number) => addDias(h, n)!;
 
-  async function garantirLote(
+  async function garantirPasto(
     nome: string,
     areaHa: number,
-    nivel: Lote["nivelPasto"],
-    extra: Partial<Lote>
-  ): Promise<{ lote: Lote; novo: boolean }> {
-    const existente = await db.lotes
-      .filter((l) => !l.deletedAt && chave(l.nome) === chave(nome))
+    nivel: Pasto["nivelPasto"],
+    extra: Partial<Pasto>
+  ): Promise<{ pasto: Pasto; novo: boolean }> {
+    const existente = await db.pastos
+      .filter((p) => !p.deletedAt && chave(p.nome) === chave(nome))
       .first();
-    if (existente) return { lote: existente, novo: false };
-    const criado = await criarLote({ nome, areaHa, nivelPasto: nivel });
-    await db.lotes.update(criado.id, extra);
-    return { lote: { ...criado, ...extra }, novo: true };
+    if (existente) return { pasto: existente, novo: false };
+    const criado = await criarPasto({ nome, areaHa, nivelPasto: nivel });
+    await db.pastos.update(criado.id, extra);
+    return { pasto: { ...criado, ...extra }, novo: true };
   }
 
-  const norte = await garantirLote("Pasto Norte", 15.5, "Alto", {
+  const norte = await garantirPasto("Pasto Norte", 15.5, "Alto", {
     situacaoDesde: dias(-12),
     // remédio a cada 6 meses: a próxima aplicação cai daqui a 3 dias
     remedioUltimaData: addDias(addMeses(h, -6)!, 3)!,
@@ -41,115 +41,119 @@ export async function carregarDadosExemplo(): Promise<number> {
     salUltimaData: dias(-35),
     salIntervaloDias: 30,
   });
-  const sul = await garantirLote("Pasto Sul", 12.3, "Médio", {
+  const sul = await garantirPasto("Pasto Sul", 12.3, "Médio", {
     situacaoDesde: dias(-40),
     remedioUltimaData: dias(-30),
     remedioIntervaloMeses: 6,
     salUltimaData: dias(-20),
     salIntervaloDias: 30,
   });
-  await garantirLote("Pasto do Brejo", 8, "Baixo", {
+  await garantirPasto("Pasto do Brejo", 8, "Baixo", {
     situacao: "Reservado",
     situacaoDesde: dias(-25),
     nivelEm: dias(-25),
   });
 
   if (norte.novo) {
-    await criarTarefa(norte.lote.id, {
+    await criarTarefa(norte.pasto.id, {
       titulo: "Arrumar a cerca do fundo",
       observacao: "Dois mourões caídos perto do açude.",
       prazo: dias(2),
     });
-    await criarTarefa(norte.lote.id, { titulo: "Jogar adubo", observacao: "", prazo: dias(-1) });
-    await criarNota(norte.lote.id, "Capim bem formado, boa rebrota depois da chuva.");
+    await criarTarefa(norte.pasto.id, { titulo: "Jogar adubo", observacao: "", prazo: dias(-1) });
+    await criarNota(norte.pasto.id, "Capim bem formado, boa rebrota depois da chuva.");
   }
   if (sul.novo) {
-    await criarTarefa(sul.lote.id, { titulo: "Roçar o pasto", observacao: "", prazo: "" });
+    await criarTarefa(sul.pasto.id, { titulo: "Roçar o pasto", observacao: "", prazo: "" });
   }
 
-  const exemplos: AnimalInput[] = [
+  const base = { raca: "", pesoMedioKg: null, origem: "" as const, vacinas: [], observacoes: "" };
+  const lotes: LoteGadoInput[] = [
     {
-      brinco: "BR-001",
-      nome: "Margarida",
+      ...base,
+      nome: "Matrizes do Norte",
+      pastoId: norte.pasto.id,
+      composicao: [
+        { sexo: "Fêmea", categoria: "Vaca atrasada", quantidade: 12 },
+        { sexo: "Fêmea", categoria: "Vaca mojando", quantidade: 4 },
+        { sexo: "Fêmea", categoria: "Vaca parida", quantidade: 6 },
+        { sexo: "Macho", categoria: "Touro", quantidade: 1 },
+      ],
       raca: "Nelore",
-      sexo: "Fêmea",
-      dataNascimento: "2021-05-15",
-      pesoKg: 480,
-      mae: "Princesa Velha",
-      pai: "Nelore Campeão",
-      status: "Saudável",
-      observacoes: "",
-      loteId: norte.lote.id,
+      pesoMedioKg: 480,
+      origem: "Nascido na fazenda",
+      situacao: "Normal",
       vacinas: [
-        { nome: "Aftosa", data: dias(-60) },
-        { nome: "Raiva", data: dias(-60) },
+        { nome: "Aftosa", aplicada: true, faltam: null, data: dias(-60) },
+        { nome: "Brucelose", aplicada: true, faltam: 3, data: dias(-45) },
       ],
     },
     {
-      brinco: "BR-002",
-      nome: "Zeus",
-      raca: "Angus",
-      sexo: "Macho",
-      dataNascimento: "2023-03-20",
-      pesoKg: 650,
-      mae: "Rainha Angus",
-      pai: "Zeus IV",
-      status: "Saudável",
-      observacoes: "Reprodutor.",
-      loteId: sul.lote.id,
-      vacinas: [{ nome: "Aftosa", data: dias(-45) }],
-    },
-    {
-      brinco: "BR-003",
-      nome: "Princesa",
+      ...base,
+      nome: "Garrotes",
+      pastoId: sul.pasto.id,
+      composicao: [{ sexo: "Macho", categoria: "Garrote", quantidade: 24 }],
       raca: "Nelore",
-      sexo: "Fêmea",
-      dataNascimento: "2024-02-10",
-      pesoKg: 320,
-      mae: "Margarida",
-      pai: "Nelore Premium",
-      status: "Vacinação pendente",
-      observacoes: "",
-      loteId: norte.lote.id,
-      vacinas: [],
+      pesoMedioKg: 310,
+      origem: "Comprado",
+      situacao: "Normal",
+      vacinas: [{ nome: "Aftosa", aplicada: false, faltam: null, data: "" }],
     },
     {
-      brinco: "BR-004",
-      nome: "Estrela",
+      ...base,
+      nome: "Novilhas",
+      pastoId: sul.pasto.id,
+      composicao: [
+        { sexo: "Fêmea", categoria: "Novilha", quantidade: 15 },
+        { sexo: "Fêmea", categoria: "Vitela", quantidade: 5 },
+      ],
       raca: "Girolando",
-      sexo: "Fêmea",
-      dataNascimento: "2022-09-02",
-      pesoKg: 410,
-      mae: "",
-      pai: "",
-      status: "Em tratamento",
-      observacoes: "Em observação no curral de manejo.",
-      loteId: sul.lote.id,
-      vacinas: [{ nome: "Brucelose", data: "" }],
+      situacao: "Normal",
     },
     {
-      brinco: "BR-005",
-      nome: "",
+      ...base,
+      nome: "Bois para venda",
+      pastoId: null,
+      composicao: [{ sexo: "Macho", categoria: "Boi", quantidade: 10 }],
       raca: "Brahman",
-      sexo: "Macho",
-      dataNascimento: "2025-01-12",
-      pesoKg: 210,
-      mae: "",
-      pai: "",
-      status: "Saudável",
-      observacoes: "",
-      loteId: null,
-      vacinas: [],
+      pesoMedioKg: 520,
+      situacao: "Separado para venda",
     },
   ];
 
   let criados = 0;
-  for (const ex of exemplos) {
+  for (const l of lotes) {
     try {
-      await criarAnimal(ex);
+      const lote = await criarLoteGado(l);
       criados++;
+      if (l.nome === "Matrizes do Norte") {
+        await criarCabeca(lote.id, {
+          brinco: "BR-001",
+          cor: "Branca",
+          nome: "Margarida",
+          raca: "Nelore",
+          sexo: "Fêmea",
+          dataNascimento: "2021-05-15",
+          pesoKg: 480,
+          mae: "",
+          pai: "",
+          observacoes: "",
+        });
+        await criarCabeca(lote.id, {
+          brinco: "",
+          cor: "Preta com mancha na testa",
+          nome: "",
+          raca: "Angus",
+          sexo: "Macho",
+          dataNascimento: "",
+          pesoKg: 650,
+          mae: "",
+          pai: "",
+          observacoes: "Touro reprodutor.",
+        });
+      }
     } catch {
-      // brinco já existente: segue para o próximo
+      // lote com esse nome já existe: segue para o próximo
     }
   }
   return criados;

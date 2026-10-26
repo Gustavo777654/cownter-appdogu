@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { Trash } from "@phosphor-icons/react";
-import { criarNota, excluirNota } from "@/lib/lotes";
-import { useNotasDoLote } from "@/lib/hooks";
+import { criarNota, excluirNota } from "@/lib/pastos";
+import { useNotasDoPasto } from "@/lib/hooks";
 import { formatDataBR } from "@/lib/utils";
 
-export function NotasSection({ loteId }: { loteId: string }) {
-  const notas = useNotasDoLote(loteId);
+export function NotasSection({ pastoId }: { pastoId: string }) {
+  const notas = useNotasDoPasto(pastoId);
   const [texto, setTexto] = useState("");
   const [salvando, setSalvando] = useState(false);
 
@@ -16,7 +16,7 @@ export function NotasSection({ loteId }: { loteId: string }) {
     if (!texto.trim()) return;
     setSalvando(true);
     try {
-      await criarNota(loteId, texto);
+      await criarNota(pastoId, texto);
       setTexto("");
     } finally {
       setSalvando(false);

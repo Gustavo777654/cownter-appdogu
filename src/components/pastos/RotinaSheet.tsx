@@ -3,19 +3,19 @@
 import { useEffect, useState } from "react";
 import { Warning } from "@phosphor-icons/react";
 import { BottomSheet } from "@/components/ui/BottomSheet";
-import { configurarRotina } from "@/lib/lotes";
-import { proximaData, rotinaDoLote, ROTINAS, type TipoRotina } from "@/lib/rotinas";
-import type { Lote } from "@/lib/types";
+import { configurarRotina } from "@/lib/pastos";
+import { proximaData, rotinaDoPasto, ROTINAS, type TipoRotina } from "@/lib/rotinas";
+import type { Pasto } from "@/lib/types";
 import { formatDataBR, hoje } from "@/lib/utils";
 
 interface RotinaSheetProps {
   open: boolean;
-  lote: Lote;
+  pasto: Pasto;
   tipo: TipoRotina;
   onClose: () => void;
 }
 
-export function RotinaSheet({ open, lote, tipo, onClose }: RotinaSheetProps) {
+export function RotinaSheet({ open, pasto, tipo, onClose }: RotinaSheetProps) {
   const regra = ROTINAS[tipo];
   const [ultima, setUltima] = useState("");
   const [intervalo, setIntervalo] = useState("");
@@ -24,14 +24,14 @@ export function RotinaSheet({ open, lote, tipo, onClose }: RotinaSheetProps) {
 
   useEffect(() => {
     if (!open) return;
-    const atual = rotinaDoLote(lote, tipo);
+    const atual = rotinaDoPasto(pasto, tipo);
     setUltima(atual.ultima);
     setIntervalo(atual.intervalo !== null ? String(atual.intervalo) : "");
     setErro("");
     setSalvando(false);
     // Só recarrega ao abrir ou trocar de rotina; digitar não deve ser sobrescrito.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, tipo, lote.id]);
+  }, [open, tipo, pasto.id]);
 
   const numero = intervalo.trim() ? Number(intervalo) : null;
   const previa =
@@ -48,7 +48,7 @@ export function RotinaSheet({ open, lote, tipo, onClose }: RotinaSheetProps) {
     }
     setSalvando(true);
     try {
-      await configurarRotina(lote.id, tipo, { ultimaData: ultima, intervalo: numero });
+      await configurarRotina(pasto.id, tipo, { ultimaData: ultima, intervalo: numero });
       onClose();
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Não foi possível salvar.");
@@ -65,7 +65,7 @@ export function RotinaSheet({ open, lote, tipo, onClose }: RotinaSheetProps) {
     <BottomSheet
       open={open}
       onClose={onClose}
-      title={`${regra.nome} · ${lote.nome}`}
+      title={`${regra.nome} · ${pasto.nome}`}
       footer={
         <div className="flex gap-3">
           <button type="button" onClick={onClose} className="btn-secondary flex-1">

@@ -2,25 +2,25 @@
 
 import { useState } from "react";
 import { CheckCircle, Drop, GearSix, Pill } from "@phosphor-icons/react";
-import { marcarRotinaFeita } from "@/lib/lotes";
+import { marcarRotinaFeita } from "@/lib/pastos";
 import {
   diasParaVencer,
   proximaData,
-  rotinaDoLote,
+  rotinaDoPasto,
   ROTINAS,
   type TipoRotina,
 } from "@/lib/rotinas";
-import type { Lote } from "@/lib/types";
+import type { Pasto } from "@/lib/types";
 import { formatDataBR, formatDesde, hoje } from "@/lib/utils";
 import { PrazoBadge } from "@/components/ui/PrazoBadge";
 import { RotinaSheet } from "./RotinaSheet";
 
-export function RotinaCard({ lote, tipo }: { lote: Lote; tipo: TipoRotina }) {
+export function RotinaCard({ pasto, tipo }: { pasto: Pasto; tipo: TipoRotina }) {
   const [editando, setEditando] = useState(false);
   const [salvando, setSalvando] = useState(false);
 
   const regra = ROTINAS[tipo];
-  const { ultima, intervalo } = rotinaDoLote(lote, tipo);
+  const { ultima, intervalo } = rotinaDoPasto(pasto, tipo);
   const proxima = proximaData(ultima, tipo, intervalo);
   const dias = proxima ? diasParaVencer(proxima, hoje()) : null;
   const Icone = tipo === "remedio" ? Pill : Drop;
@@ -30,7 +30,7 @@ export function RotinaCard({ lote, tipo }: { lote: Lote; tipo: TipoRotina }) {
   async function feito() {
     setSalvando(true);
     try {
-      await marcarRotinaFeita(lote.id, tipo);
+      await marcarRotinaFeita(pasto.id, tipo);
     } finally {
       setSalvando(false);
     }
@@ -101,7 +101,7 @@ export function RotinaCard({ lote, tipo }: { lote: Lote; tipo: TipoRotina }) {
         )}
       </div>
 
-      <RotinaSheet open={editando} lote={lote} tipo={tipo} onClose={() => setEditando(false)} />
+      <RotinaSheet open={editando} pasto={pasto} tipo={tipo} onClose={() => setEditando(false)} />
     </div>
   );
 }
