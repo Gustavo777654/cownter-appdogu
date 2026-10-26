@@ -3,27 +3,50 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Moon, PencilSimple, Plant, Trash, Warning } from "@phosphor-icons/react";
-import { alterarSituacao, atualizarNivel, excluirLote } from "@/lib/lotes";
-import { useLote } from "@/lib/hooks";
-import { NIVEIS_PASTO } from "@/lib/types";
-import { cn, formatDesde } from "@/lib/utils";
-import { Segmented } from "@/components/ui/Segmented";
+import {
+  ArrowLeft,
+  ArrowsLeftRight,
+  Cow,
+  PencilSimple,
+  Plant,
+  Syringe,
+  Tag,
+  Trash,
+} from "@phosphor-icons/react";
+import { descreverCabecas, totalCabecas } from "@/lib/composicao";
+import { atualizarLoteGado, excluirLoteGado } from "@/lib/gado";
+import { useLoteGado, usePasto } from "@/lib/hooks";
+import type { LoteGado, LoteGadoInput } from "@/lib/types";
+import { cn, formatDataBR, formatPeso } from "@/lib/utils";
+import { CabecasSection } from "@/components/gado/CabecasSection";
+import { LoteGadoFormSheet } from "@/components/gado/LoteGadoFormSheet";
+import { DestinoPastoSheet } from "@/components/pastos/DestinoPastoSheet";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
-import { AnimaisDoLote } from "@/components/lotes/AnimaisDoLote";
-import { LoteFormSheet } from "@/components/lotes/LoteFormSheet";
-import { NotasSection } from "@/components/lotes/NotasSection";
-import { RotinaCard } from "@/components/lotes/RotinaCard";
-import { TarefasSection } from "@/components/lotes/TarefasSection";
-import { COR_NIVEL_SELECIONADO } from "@/components/lotes/nivel";
+import { Erro } from "@/components/ui/Erro";
 
-// Esta tela usa /lote?id=... em vez de /lotes/[id] de propósito: uma rota fixa pode
-// ser guardada em cache e abrir sem internet para qualquer pasto.
+function comoEntrada(l: LoteGado): LoteGadoInput {
+  return {
+    nome: l.nome,
+    pastoId: l.pastoId,
+    composicao: l.composicao,
+    raca: l.raca,
+    pesoMedioKg: l.pesoMedioKg,
+    origem: l.origem,
+    situacao: l.situacao,
+    vacinas: l.vacinas,
+    observacoes: l.observacoes,
+  };
+}
+
+// Esta tela usa /lote?id=... (e não /lote/[id]) para a rota fixa poder ser guardada em cache
+// e abrir sem internet para qualquer lote.
 export default function LotePage() {
   const router = useRouter();
   const [id, setId] = useState<string | null | undefined>(undefined);
-  const lote = useLote(id ?? null);
+  const lote = useLoteGado(id ?? null);
+  const pasto = usePasto(lote?.pastoId ?? null);
   const [editando, setEditando] = useState(false);
+  const [movendo, setMovendo] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
   const [erro, setErro] = useState("");
 
@@ -38,22 +61,26 @@ export default function LotePage() {
   if (!lote) {
     return (
       <div className="px-4 pt-10 text-center">
-        <p className="text-lg font-bold text-dark">Pasto não encontrado</p>
+        <p className="text-lg font-bold text-dark">Lote não encontrado</p>
         <p className="mt-1 text-sm text-dark/60">Ele pode ter sido excluído.</p>
-        <Link prefetch={false} href="/lotes" className="btn-primary mt-5 inline-flex">
-          Voltar para os lotes
+        <Link prefetch={false} href="/gado" className="btn-primary mt-5 inline-flex">
+          Voltar para o gado
         </Link>
       </div>
     );
   }
 
-  const reservado = lote.situacao === "Reservado";
+  const venda = lote.situacao === "Separado para venda";
+  const total = totalCabecas(lote.composicao);
 
-  async function trocarSituacao() {
+  async function alternarVenda() {
     if (!lote) return;
     setErro("");
     try {
-      await alterarSituacao(lote.id, reservado ? "Em uso" : "Reservado");
+      await atualizarLoteGado(lote.id, {
+        ...comoEntrada(lote),
+        situacao: venda ? "Normal" : "Separado para venda",
+      });
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível alterar.");
     }
@@ -61,26 +88,23 @@ export default function LotePage() {
 
   async function confirmarExclusao() {
     if (!lote) return;
-    await excluirLote(lote.id);
-    router.replace("/lotes");
+    await excluirLoteGado(lote.id);
+    router.replace("/gado");
   }
 
   return (
     <div className="space-y-6 pb-6">
       <header className="px-4 pt-4">
         <div className="flex items-center justify-between">
-          <Link prefetch={false}
-            href="/lotes"
-            aria-label="Voltar para os lotes"
+          <Link
+            prefetch={false}
+            href="/gado"
+            aria-label="Voltar para o gado"
             className="flex h-10 w-10 items-center justify-center rounded-full text-dark/70 hover:bg-dark/5"
           >
             <ArrowLeft size={24} />
           </Link>
-          <button
-            type="button"
-            onClick={() => setEditando(true)}
-            className="btn-ghost min-h-10 px-3 text-sm"
-          >
+          <button type="button" onClick={() => setEditando(true)} className="btn-ghost min-h-10 px-3 text-sm">
             <PencilSimple size={18} />
             Editar
           </button>
@@ -89,68 +113,135 @@ export default function LotePage() {
           <div
             className={cn(
               "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl",
-              reservado ? "bg-earth-100 text-earth-700" : "bg-brand-100 text-brand-700"
+              venda ? "bg-amber-100 text-amber-700" : "bg-brand-100 text-brand-700"
             )}
           >
-            {reservado ? <Moon size={30} weight="duotone" /> : <Plant size={30} weight="duotone" />}
+            <Cow size={30} weight="duotone" />
           </div>
           <div className="min-w-0">
             <h1 className="truncate text-3xl font-bold leading-tight text-dark">{lote.nome}</h1>
-            {lote.areaHa !== null && (
-              <p className="text-sm text-dark/60">{lote.areaHa.toLocaleString("pt-BR")} hectares</p>
-            )}
+            <p className="text-sm font-semibold text-brand-700">{descreverCabecas(total)}</p>
           </div>
         </div>
       </header>
 
       <div className="space-y-6 px-4">
-        <section className="card space-y-4">
-          <div>
-            <Segmented
-              label="Nível do pasto (capim)"
-              value={lote.nivelPasto}
-              options={NIVEIS_PASTO}
-              onChange={(n) => atualizarNivel(lote.id, n)}
-              cores={COR_NIVEL_SELECIONADO}
-            />
-            <p className="mt-1.5 text-xs text-dark/55">
-              Atualizado {formatDesde(lote.nivelEm)}.
-            </p>
-          </div>
+        <Erro texto={erro} />
 
-          <div className="border-t border-brand-100 pt-4">
-            {erro && (
-              <div
-                role="alert"
-                className="mb-3 flex items-start gap-2 rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700"
-              >
-                <Warning size={20} weight="fill" className="mt-0.5 shrink-0" />
-                {erro}
-              </div>
-            )}
-            <p className="text-sm text-dark/70">
-              {reservado ? "Reservado (descansando)" : "Em uso"}{" "}
-              <strong className="text-dark">{formatDesde(lote.situacaoDesde)}</strong>
-            </p>
-            <button
-              type="button"
-              onClick={trocarSituacao}
-              className={cn("mt-2 w-full", reservado ? "btn-primary" : "btn-secondary")}
-            >
-              {reservado ? "Liberar para uso" : "Reservar para descanso"}
+        <section className="card space-y-3">
+          <div className="flex items-center gap-3">
+            <Plant size={22} className="shrink-0 text-brand-700" />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-dark/55">Pasto onde está</p>
+              {pasto ? (
+                <Link prefetch={false} href={`/pasto?id=${pasto.id}`} className="block truncate font-bold text-brand-800">
+                  {pasto.nome}
+                </Link>
+              ) : (
+                <p className="font-bold text-dark">Sem pasto</p>
+              )}
+            </div>
+            <button type="button" onClick={() => setMovendo(true)} className="btn-secondary min-h-10 px-3 text-sm">
+              <ArrowsLeftRight size={18} />
+              Mover
             </button>
           </div>
+          <button
+            type="button"
+            onClick={alternarVenda}
+            className={cn("w-full text-sm", venda ? "btn-secondary min-h-11" : "btn-secondary min-h-11")}
+          >
+            <Tag size={18} />
+            {venda ? "Tirar da lista de venda" : "Separar para venda"}
+          </button>
+          {venda && (
+            <p className="text-xs text-amber-800">
+              Este lote está separado para venda. O registro da venda chega junto com a aba Finanças.
+            </p>
+          )}
         </section>
 
-        <section className="space-y-3">
-          <h2 className="text-xl font-bold text-dark">Rotinas</h2>
-          <RotinaCard lote={lote} tipo="remedio" />
-          <RotinaCard lote={lote} tipo="sal" />
+        <section>
+          <h2 className="mb-3 text-xl font-bold text-dark">Composição</h2>
+          <ul className="card divide-y divide-brand-100 p-0">
+            {lote.composicao.map((l) => (
+              <li key={`${l.sexo}-${l.categoria}`} className="flex items-center justify-between px-4 py-3">
+                <span className="text-dark">
+                  {l.categoria} <span className="text-sm text-dark/50">({l.sexo === "Fêmea" ? "fêmea" : "macho"})</span>
+                </span>
+                <span className="font-bold text-dark">{l.quantidade}</span>
+              </li>
+            ))}
+            <li className="flex items-center justify-between bg-brand-50/60 px-4 py-3 font-bold">
+              <span>Total</span>
+              <span className="text-brand-700">{total}</span>
+            </li>
+          </ul>
         </section>
 
-        <AnimaisDoLote lote={lote} />
-        <TarefasSection loteId={lote.id} />
-        <NotasSection loteId={lote.id} />
+        {(lote.raca || lote.pesoMedioKg !== null || lote.origem || lote.observacoes) && (
+          <section>
+            <h2 className="mb-3 text-xl font-bold text-dark">Características</h2>
+            <dl className="card space-y-2 text-sm">
+              {lote.raca && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-dark/60">Raça</dt>
+                  <dd className="font-semibold text-dark">{lote.raca}</dd>
+                </div>
+              )}
+              {lote.pesoMedioKg !== null && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-dark/60">Peso médio</dt>
+                  <dd className="font-semibold text-dark">{formatPeso(lote.pesoMedioKg)}</dd>
+                </div>
+              )}
+              {lote.origem && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-dark/60">Origem</dt>
+                  <dd className="font-semibold text-dark">{lote.origem}</dd>
+                </div>
+              )}
+              {lote.observacoes && (
+                <div>
+                  <dt className="text-dark/60">Observações</dt>
+                  <dd className="mt-0.5 whitespace-pre-wrap text-dark">{lote.observacoes}</dd>
+                </div>
+              )}
+            </dl>
+          </section>
+        )}
+
+        <section>
+          <h2 className="mb-3 text-xl font-bold text-dark">Vacinas</h2>
+          {lote.vacinas.length === 0 ? (
+            <div className="card text-sm text-dark/60">
+              Nenhuma vacina anotada. Use <strong>Editar</strong> para registrar as vacinas do lote (opcional).
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {lote.vacinas.map((v, i) => (
+                <li key={i} className="card flex items-center gap-3 p-3">
+                  <Syringe size={22} className={v.aplicada ? "text-brand-700" : "text-amber-600"} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-bold text-dark">{v.nome}</p>
+                    <p className="text-sm text-dark/60">
+                      {v.aplicada
+                        ? `Aplicada${v.data ? ` em ${formatDataBR(v.data)}` : ""}`
+                        : "Não aplicada"}
+                    </p>
+                  </div>
+                  {v.aplicada && v.faltam ? (
+                    <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                      Faltam {v.faltam}
+                    </span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <CabecasSection lote={lote} />
 
         <button
           type="button"
@@ -158,21 +249,22 @@ export default function LotePage() {
           className="btn w-full border border-red-200 bg-white text-red-600 hover:bg-red-50"
         >
           <Trash size={20} />
-          Excluir pasto
+          Excluir lote
         </button>
       </div>
 
-      <LoteFormSheet open={editando} lote={lote} onClose={() => setEditando(false)} />
+      <LoteGadoFormSheet open={editando} lote={lote} onClose={() => setEditando(false)} />
+      <DestinoPastoSheet open={movendo} lote={lote} onClose={() => setMovendo(false)} />
       <ConfirmSheet
         open={excluindo}
-        title="Excluir pasto?"
+        title="Excluir lote?"
         confirmLabel="Excluir"
         onConfirm={confirmarExclusao}
         onClose={() => setExcluindo(false)}
       >
         <p>
-          O pasto <strong>{lote.nome}</strong> será removido, junto com as tarefas e observações dele.
-          Os animais que estão nele ficam sem pasto.
+          O lote <strong>{lote.nome}</strong> ({descreverCabecas(total)}) será removido, junto com as cabeças
+          cadastradas nele.
         </p>
       </ConfirmSheet>
     </div>

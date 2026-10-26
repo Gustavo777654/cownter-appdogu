@@ -8,21 +8,21 @@ import {
   CheckSquare,
   Cow,
   Drop,
-  Heartbeat,
+  Moon,
   Pill,
   Plant,
   Plus,
-  Stethoscope,
-  Syringe,
+  Tag,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAnimais, useLotes, useTarefasAbertas } from "@/lib/hooks";
+import { descreverCabecas, totalDeLotes } from "@/lib/composicao";
+import { useLotesGado, usePastos, useTarefasAbertas } from "@/lib/hooks";
 import { coletarAlertas, type Alerta } from "@/lib/rotinas";
 import { hoje } from "@/lib/utils";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PrazoBadge } from "@/components/ui/PrazoBadge";
-import { StatusBadge } from "@/components/ui/StatusBadge";
+import { LoteGadoCard } from "@/components/gado/LoteGadoCard";
 
 function Indicador({
   rotulo,
@@ -54,19 +54,19 @@ const ICONE_ALERTA: Record<Alerta["tipo"], Icon> = {
 
 export default function InicioPage() {
   const { user } = useAuth();
-  const animais = useAnimais();
-  const lotes = useLotes();
+  const lotes = useLotesGado();
+  const pastos = usePastos();
   const tarefas = useTarefasAbertas();
 
-  const total = animais?.length;
-  const saudaveis = animais?.filter((a) => a.status === "Saudável").length;
-  const pendentes = animais?.filter((a) => a.status === "Vacinação pendente").length;
-  const emTratamento = animais?.filter((a) => a.status === "Em tratamento").length;
-  const atencao = animais?.filter((a) => a.status !== "Saudável").slice(0, 5) ?? [];
+  const cabecas = lotes ? totalDeLotes(lotes) : undefined;
+  const pastosEmUso = pastos?.filter((p) => p.situacao === "Em uso").length;
+  const pastosDescansando = pastos?.filter((p) => p.situacao === "Reservado").length;
+  const paraVenda = lotes?.filter((l) => l.situacao === "Separado para venda") ?? [];
+  const nomesPastos = useMemo(() => new Map((pastos ?? []).map((p) => [p.id, p.nome])), [pastos]);
 
   const alertas = useMemo(
-    () => (lotes && tarefas ? coletarAlertas(lotes, tarefas, hoje()) : undefined),
-    [lotes, tarefas]
+    () => (pastos && tarefas ? coletarAlertas(pastos, tarefas, hoje()) : undefined),
+    [pastos, tarefas]
   );
   const atrasados = alertas?.filter((a) => a.dias < 0).length ?? 0;
 
@@ -91,8 +91,8 @@ export default function InicioPage() {
             <div className="card flex items-start gap-3 text-sm text-dark/60">
               <BellRinging size={22} className="mt-0.5 shrink-0 text-brand-700" />
               <p>
-                {lotes && lotes.length === 0
-                  ? "Crie seus pastos na aba Lotes e configure o remédio e o sal para o app avisar na hora certa."
+                {pastos && pastos.length === 0
+                  ? "Crie seus pastos na aba Pastos e configure o remédio e o sal para o app avisar na hora certa."
                   : "Nada atrasado nem previsto para os próximos 7 dias."}
               </p>
             </div>
@@ -102,7 +102,7 @@ export default function InicioPage() {
                 const Icone = ICONE_ALERTA[a.tipo];
                 return (
                   <li key={a.chave}>
-                    <Link prefetch={false} href={`/lote?id=${a.loteId}`} className="card flex items-center gap-3 p-3">
+                    <Link prefetch={false} href={`/lote?id=${a.pastoId}`} className="card flex items-center gap-3 p-3">
                       <div
                         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
                           a.dias < 0 ? "bg-red-100 text-red-700" : "bg-brand-100 text-brand-700"
@@ -112,7 +112,7 @@ export default function InicioPage() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-bold text-dark">{a.titulo}</p>
-                        <p className="truncate text-sm text-dark/60">{a.loteNome}</p>
+                        <p className="truncate text-sm text-dark/60">{a.pastoNome}</p>
                       </div>
                       <PrazoBadge dias={a.dias} />
                       <CaretRight size={18} className="shrink-0 text-dark/30" />
@@ -126,67 +126,60 @@ export default function InicioPage() {
 
         <div className="grid grid-cols-2 gap-3">
           <Indicador
-            rotulo="Animais no rebanho"
-            valor={total}
+            rotulo={cabecas === 1 ? "Cabeça de gado" : "Cabeças de gado"}
+            valor={cabecas}
             Icone={Cow}
             cor="bg-brand-100 text-brand-700"
           />
           <Indicador
-            rotulo="Pastos"
+            rotulo={lotes?.length === 1 ? "Lote de gado" : "Lotes de gado"}
             valor={lotes?.length}
+            Icone={Tag}
+            cor="bg-brand-100 text-brand-700"
+          />
+          <Indicador
+            rotulo="Pastos em uso"
+            valor={pastosEmUso}
             Icone={Plant}
             cor="bg-brand-100 text-brand-700"
           />
           <Indicador
-            rotulo="Saudáveis"
-            valor={saudaveis}
-            Icone={Heartbeat}
-            cor="bg-brand-100 text-brand-700"
-          />
-          <Indicador
-            rotulo="Vacinação pendente"
-            valor={pendentes}
-            Icone={Syringe}
-            cor="bg-amber-100 text-amber-700"
-          />
-          <Indicador
-            rotulo="Em tratamento"
-            valor={emTratamento}
-            Icone={Stethoscope}
-            cor="bg-red-100 text-red-700"
+            rotulo="Pastos descansando"
+            valor={pastosDescansando}
+            Icone={Moon}
+            cor="bg-earth-100 text-earth-800"
           />
         </div>
 
-        <Link prefetch={false} href="/rebanho?novo=1" className="btn-primary w-full">
-          <Plus size={22} weight="bold" />
-          Cadastrar animal
-        </Link>
+        <div className="grid grid-cols-2 gap-3">
+          <Link prefetch={false} href="/gado?novo=1" className="btn-primary px-3 text-sm">
+            <Plus size={20} weight="bold" />
+            Cadastrar lote
+          </Link>
+          <Link prefetch={false} href="/pastos?novo=1" className="btn-secondary px-3 text-sm">
+            <Plus size={20} weight="bold" />
+            Criar pasto
+          </Link>
+        </div>
 
-        <section>
-          <h2 className="mb-3 text-xl font-bold text-dark">Animais que precisam de atenção</h2>
-          {animais && atencao.length === 0 ? (
-            <div className="card text-sm text-dark/60">
-              {animais.length === 0
-                ? "Cadastre seus primeiros animais para acompanhar a saúde do rebanho."
-                : "Nenhum animal precisa de atenção agora."}
-            </div>
-          ) : (
+        {paraVenda.length > 0 && (
+          <section>
+            <h2 className="mb-3 text-xl font-bold text-dark">Separados para venda</h2>
             <ul className="space-y-2">
-              {atencao.map((a) => (
-                <li key={a.id}>
-                  <Link prefetch={false} href="/rebanho" className="card flex items-center gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-bold text-dark">{a.nome || "Sem nome"}</p>
-                      <p className="text-sm font-semibold text-brand-700">{a.brinco}</p>
-                    </div>
-                    <StatusBadge status={a.status} />
-                    <CaretRight size={18} className="shrink-0 text-dark/30" />
-                  </Link>
+              {paraVenda.map((l) => (
+                <li key={l.id}>
+                  <LoteGadoCard lote={l} pastoNome={l.pastoId ? (nomesPastos.get(l.pastoId) ?? null) : null} />
                 </li>
               ))}
             </ul>
-          )}
-        </section>
+          </section>
+        )}
+
+        {lotes && lotes.length === 0 && (
+          <div className="card text-sm text-dark/60">
+            Cadastre seus lotes de gado na aba Gado para ver aqui o total de cabeças ({descreverCabecas(0)} por enquanto).
+          </div>
+        )}
       </div>
     </>
   );

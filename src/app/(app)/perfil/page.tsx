@@ -1,12 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CloudArrowUp, SignOut, WifiHigh, WifiSlash } from "@phosphor-icons/react";
+import { ArrowLeft, CloudArrowUp, SignOut, WifiHigh, WifiSlash } from "@phosphor-icons/react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOnline, usePendentesSync } from "@/lib/hooks";
-import { PageHeader } from "@/components/layout/PageHeader";
 
-export default function MaisPage() {
+export default function PerfilPage() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const online = useOnline();
@@ -19,7 +19,17 @@ export default function MaisPage() {
 
   return (
     <>
-      <PageHeader title="Mais" />
+      <header className="flex items-center gap-2 px-4 pb-3 pt-4">
+        <Link
+          prefetch={false}
+          href="/inicio"
+          aria-label="Voltar"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-dark/70 hover:bg-dark/5"
+        >
+          <ArrowLeft size={24} />
+        </Link>
+        <h1 className="text-3xl font-bold leading-tight text-dark">Perfil</h1>
+      </header>
 
       <div className="space-y-4 px-4">
         <div className="card">

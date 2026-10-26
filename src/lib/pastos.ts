@@ -1,24 +1,24 @@
 import { db } from "./db";
 import { ROTINAS, type TipoRotina } from "./rotinas";
-import type { Lote, LoteInput, Nota, SituacaoLote, Tarefa, NivelPasto } from "./types";
+import type { Pasto, PastoInput, Nota, SituacaoPasto, Tarefa, NivelPasto } from "./types";
 import { hoje, uuid } from "./utils";
 
 const agora = () => new Date().toISOString();
 const chaveNome = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
 
 // ---------------------------------------------------------------------------
-// Lotes (pastos)
+// Pastos
 // ---------------------------------------------------------------------------
 
 async function garantirNomeLivre(nome: string, ignorarId?: string) {
   const chave = chaveNome(nome);
-  const existente = await db.lotes
+  const existente = await db.pastos
     .filter((l) => !l.deletedAt && l.id !== ignorarId && chaveNome(l.nome) === chave)
     .first();
   if (existente) throw new Error(`Já existe um pasto chamado ${existente.nome}.`);
 }
 
-function limparLote(input: LoteInput): LoteInput {
+function limparPasto(input: PastoInput): PastoInput {
   const nome = input.nome.trim().replace(/\s+/g, " ");
   if (!nome) throw new Error("Informe o nome do pasto.");
   const area = input.areaHa;
@@ -28,19 +28,19 @@ function limparLote(input: LoteInput): LoteInput {
   return { nome, areaHa: area, nivelPasto: input.nivelPasto };
 }
 
-async function lotePorId(id: string): Promise<Lote> {
-  const lote = await db.lotes.get(id);
-  if (!lote || lote.deletedAt) throw new Error("Pasto não encontrado.");
-  return lote;
+async function pastoPorId(id: string): Promise<Pasto> {
+  const pasto = await db.pastos.get(id);
+  if (!pasto || pasto.deletedAt) throw new Error("Pasto não encontrado.");
+  return pasto;
 }
 
-export async function criarLote(input: LoteInput): Promise<Lote> {
-  const dados = limparLote(input);
+export async function criarPasto(input: PastoInput): Promise<Pasto> {
+  const dados = limparPasto(input);
   await garantirNomeLivre(dados.nome);
 
   const h = hoje();
   const t = agora();
-  const lote: Lote = {
+  const pasto: Pasto = {
     ...dados,
     id: uuid(),
     nivelEm: h,
@@ -55,16 +55,16 @@ export async function criarLote(input: LoteInput): Promise<Lote> {
     deletedAt: null,
     syncStatus: "pending",
   };
-  await db.lotes.add(lote);
-  return lote;
+  await db.pastos.add(pasto);
+  return pasto;
 }
 
-export async function atualizarLote(id: string, input: LoteInput): Promise<void> {
-  const atual = await lotePorId(id);
-  const dados = limparLote(input);
+export async function atualizarPasto(id: string, input: PastoInput): Promise<void> {
+  const atual = await pastoPorId(id);
+  const dados = limparPasto(input);
   await garantirNomeLivre(dados.nome, id);
 
-  await db.lotes.update(id, {
+  await db.pastos.update(id, {
     ...dados,
     nivelEm: dados.nivelPasto !== atual.nivelPasto ? hoje() : atual.nivelEm,
     updatedAt: agora(),
@@ -73,9 +73,9 @@ export async function atualizarLote(id: string, input: LoteInput): Promise<void>
 }
 
 export async function atualizarNivel(id: string, nivel: NivelPasto): Promise<void> {
-  const atual = await lotePorId(id);
+  const atual = await pastoPorId(id);
   if (atual.nivelPasto === nivel) return;
-  await db.lotes.update(id, {
+  await db.pastos.update(id, {
     nivelPasto: nivel,
     nivelEm: hoje(),
     updatedAt: agora(),
@@ -85,23 +85,27 @@ export async function atualizarNivel(id: string, nivel: NivelPasto): Promise<voi
 
 /**
  * Reservar o pasto = deixá-lo descansando. Só dá para reservar um pasto vazio:
- * antes, os animais precisam ser movidos para outro pasto.
+ * antes, os lotes de gado precisam ser movidos para outro pasto.
  * Liberar o pasto volta a situação para "Em uso".
  */
-export async function alterarSituacao(id: string, situacao: SituacaoLote): Promise<void> {
-  const atual = await lotePorId(id);
+export async function alterarSituacao(id: string, situacao: SituacaoPasto): Promise<void> {
+  const atual = await pastoPorId(id);
   if (atual.situacao === situacao) return;
 
   if (situacao === "Reservado") {
-    const dentro = await db.animals.where("loteId").equals(id).filter((a) => !a.deletedAt).count();
+    const dentro = await db.lotesGado
+      .where("pastoId")
+      .equals(id)
+      .filter((l) => !l.deletedAt)
+      .count();
     if (dentro > 0) {
       throw new Error(
-        `Há ${dentro} ${dentro === 1 ? "animal" : "animais"} neste pasto. Mova-os para outro pasto antes de reservar.`
+        `Há ${dentro} ${dentro === 1 ? "lote" : "lotes"} de gado neste pasto. Mova-${dentro === 1 ? "o" : "os"} para outro pasto antes de reservar.`
       );
     }
   }
 
-  await db.lotes.update(id, {
+  await db.pastos.update(id, {
     situacao,
     situacaoDesde: hoje(),
     updatedAt: agora(),
@@ -109,66 +113,27 @@ export async function alterarSituacao(id: string, situacao: SituacaoLote): Promi
   });
 }
 
-/** Exclui o pasto: os animais ficam sem pasto e as tarefas e observações do pasto são removidas. */
-export async function excluirLote(id: string): Promise<void> {
+/** Exclui o pasto: os lotes de gado ficam sem pasto e as tarefas e observações do pasto são removidas. */
+export async function excluirPasto(id: string): Promise<void> {
   const t = agora();
-  await db.transaction("rw", db.lotes, db.animals, db.tarefas, db.notas, async () => {
-    await db.lotes.update(id, { deletedAt: t, updatedAt: t, syncStatus: "pending" });
-    await db.animals
-      .where("loteId")
+  await db.transaction("rw", db.pastos, db.lotesGado, db.tarefas, db.notas, async () => {
+    await db.pastos.update(id, { deletedAt: t, updatedAt: t, syncStatus: "pending" });
+    await db.lotesGado
+      .where("pastoId")
       .equals(id)
       .filter((a) => !a.deletedAt)
-      .modify({ loteId: null, updatedAt: t, syncStatus: "pending" });
+      .modify({ pastoId: null, updatedAt: t, syncStatus: "pending" });
     await db.tarefas
-      .where("loteId")
+      .where("pastoId")
       .equals(id)
       .filter((x) => !x.deletedAt)
       .modify({ deletedAt: t, updatedAt: t, syncStatus: "pending" });
     await db.notas
-      .where("loteId")
+      .where("pastoId")
       .equals(id)
       .filter((x) => !x.deletedAt)
       .modify({ deletedAt: t, updatedAt: t, syncStatus: "pending" });
   });
-}
-
-// ---------------------------------------------------------------------------
-// Movimentação de animais entre pastos
-// ---------------------------------------------------------------------------
-
-/** Move animais para um pasto (ou para "sem pasto", com loteId = null). */
-export async function moverAnimais(ids: string[], loteId: string | null): Promise<number> {
-  if (ids.length === 0) return 0;
-  if (loteId) {
-    const destino = await lotePorId(loteId);
-    if (destino.situacao === "Reservado") {
-      throw new Error(
-        `O pasto ${destino.nome} está reservado (descansando). Libere-o para uso antes de colocar animais.`
-      );
-    }
-  }
-  const t = agora();
-  let movidos = 0;
-  await db.transaction("rw", db.animals, async () => {
-    for (const id of ids) {
-      const a = await db.animals.get(id);
-      if (!a || a.deletedAt || a.loteId === loteId) continue;
-      await db.animals.update(id, { loteId, updatedAt: t, syncStatus: "pending" });
-      movidos++;
-    }
-  });
-  return movidos;
-}
-
-/** Move todos os animais de um pasto para outro: o gesto mais comum do rodízio. */
-export async function moverTodos(deId: string, paraId: string | null): Promise<number> {
-  if (deId === paraId) return 0;
-  const ids = await db.animals
-    .where("loteId")
-    .equals(deId)
-    .filter((a) => !a.deletedAt)
-    .primaryKeys();
-  return moverAnimais(ids as string[], paraId);
 }
 
 // ---------------------------------------------------------------------------
@@ -181,11 +146,11 @@ export interface RotinaInput {
 }
 
 export async function configurarRotina(
-  loteId: string,
+  pastoId: string,
   tipo: TipoRotina,
   input: RotinaInput
 ): Promise<void> {
-  await lotePorId(loteId);
+  await pastoPorId(pastoId);
   const regra = ROTINAS[tipo];
 
   if (input.ultimaData && input.ultimaData > hoje()) {
@@ -205,14 +170,14 @@ export async function configurarRotina(
       ? { remedioUltimaData: input.ultimaData, remedioIntervaloMeses: input.intervalo }
       : { salUltimaData: input.ultimaData, salIntervaloDias: input.intervalo };
 
-  await db.lotes.update(loteId, { ...campos, updatedAt: agora(), syncStatus: "pending" });
+  await db.pastos.update(pastoId, { ...campos, updatedAt: agora(), syncStatus: "pending" });
 }
 
 /** "Feito hoje": a última data passa a ser hoje e a contagem recomeça. */
-export async function marcarRotinaFeita(loteId: string, tipo: TipoRotina): Promise<void> {
-  await lotePorId(loteId);
+export async function marcarRotinaFeita(pastoId: string, tipo: TipoRotina): Promise<void> {
+  await pastoPorId(pastoId);
   const campos = tipo === "remedio" ? { remedioUltimaData: hoje() } : { salUltimaData: hoje() };
-  await db.lotes.update(loteId, { ...campos, updatedAt: agora(), syncStatus: "pending" });
+  await db.pastos.update(pastoId, { ...campos, updatedAt: agora(), syncStatus: "pending" });
 }
 
 // ---------------------------------------------------------------------------
@@ -225,8 +190,8 @@ export interface TarefaInput {
   prazo: string; // YYYY-MM-DD ou ""
 }
 
-export async function criarTarefa(loteId: string, input: TarefaInput): Promise<Tarefa> {
-  await lotePorId(loteId);
+export async function criarTarefa(pastoId: string, input: TarefaInput): Promise<Tarefa> {
+  await pastoPorId(pastoId);
   const titulo = input.titulo.trim();
   if (!titulo) throw new Error("Descreva a tarefa.");
   if (input.prazo && !/^\d{4}-\d{2}-\d{2}$/.test(input.prazo)) throw new Error("Prazo inválido.");
@@ -234,7 +199,7 @@ export async function criarTarefa(loteId: string, input: TarefaInput): Promise<T
   const t = agora();
   const tarefa: Tarefa = {
     id: uuid(),
-    loteId,
+    pastoId,
     titulo,
     observacao: input.observacao.trim(),
     prazo: input.prazo,
@@ -266,15 +231,15 @@ export async function excluirTarefa(id: string): Promise<void> {
   await db.tarefas.update(id, { deletedAt: t, updatedAt: t, syncStatus: "pending" });
 }
 
-export async function criarNota(loteId: string, texto: string): Promise<Nota> {
-  await lotePorId(loteId);
+export async function criarNota(pastoId: string, texto: string): Promise<Nota> {
+  await pastoPorId(pastoId);
   const limpo = texto.trim();
   if (!limpo) throw new Error("Escreva a observação.");
 
   const t = agora();
   const nota: Nota = {
     id: uuid(),
-    loteId,
+    pastoId,
     texto: limpo,
     data: hoje(),
     createdAt: t,

@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from "dexie";
-import type { Animal, Lote, Nota, Tarefa } from "./types";
+import type { Cabeca, LoteGado, Nota, Pasto, Tarefa } from "./types";
 
 /**
  * Banco local do Cownter (IndexedDB via Dexie).
@@ -9,8 +9,9 @@ import type { Animal, Lote, Nota, Tarefa } from "./types";
  * sincronização envia os registros com syncStatus = "pending".
  */
 class CownterDB extends Dexie {
-  animals!: EntityTable<Animal, "id">;
-  lotes!: EntityTable<Lote, "id">;
+  pastos!: EntityTable<Pasto, "id">;
+  lotesGado!: EntityTable<LoteGado, "id">;
+  cabecas!: EntityTable<Cabeca, "id">;
   tarefas!: EntityTable<Tarefa, "id">;
   notas!: EntityTable<Nota, "id">;
 
@@ -19,21 +20,18 @@ class CownterDB extends Dexie {
 
     // Versão 1: só animais.
     this.version(1).stores({
-      // Só os campos usados em buscas/filtros precisam ser indexados.
       animals: "id, brinco, nome, status, syncStatus, updatedAt, deletedAt",
     });
 
-    // Versão 2: lotes (pastos), tarefas, observações; animal ganha pasto e vacinas.
+    // Versão 2: lotes (que eram os pastos), tarefas, observações; animal ganha pasto e vacinas.
     this.version(2)
       .stores({
-        animals:
-          "id, brinco, nome, status, loteId, syncStatus, updatedAt, deletedAt",
+        animals: "id, brinco, nome, status, loteId, syncStatus, updatedAt, deletedAt",
         lotes: "id, nome, situacao, syncStatus, updatedAt, deletedAt",
         tarefas: "id, loteId, prazo, syncStatus, updatedAt, deletedAt",
         notas: "id, loteId, syncStatus, updatedAt, deletedAt",
       })
       .upgrade((tx) =>
-        // Animais cadastrados na versão 1 continuam valendo: entram sem pasto e sem vacinas.
         tx
           .table("animals")
           .toCollection()
@@ -42,6 +40,39 @@ class CownterDB extends Dexie {
             if (!Array.isArray(a.vacinas)) a.vacinas = [];
           })
       );
+
+    // Versão 3: "lote" passa a ser o conjunto de gado; o terreno agora é "pasto".
+    // As tabelas antigas continuam existindo nesta versão para o upgrade poder ler;
+    // elas só são apagadas na versão 4 (é assim que o Dexie renomeia tabelas).
+    this.version(3)
+      .stores({
+        pastos: "id, nome, situacao, syncStatus, updatedAt, deletedAt",
+        lotesGado: "id, nome, pastoId, situacao, syncStatus, updatedAt, deletedAt",
+        cabecas: "id, loteGadoId, brinco, syncStatus, updatedAt, deletedAt",
+        tarefas: "id, pastoId, prazo, syncStatus, updatedAt, deletedAt",
+        notas: "id, pastoId, syncStatus, updatedAt, deletedAt",
+      })
+      .upgrade(async (tx) => {
+        // Os pastos da versão 2 (tabela "lotes") continuam valendo, com os mesmos ids.
+        const pastosAntigos = await tx.table("lotes").toArray();
+        if (pastosAntigos.length > 0) await tx.table("pastos").bulkAdd(pastosAntigos);
+
+        // Tarefas e observações passam a apontar para o pasto.
+        for (const nome of ["tarefas", "notas"] as const) {
+          await tx
+            .table(nome)
+            .toCollection()
+            .modify((r) => {
+              if (r.pastoId === undefined) r.pastoId = r.loteId;
+              delete r.loteId;
+            });
+        }
+        // Os animais soltos da versão 2 não têm equivalente: o rebanho agora é organizado
+        // em lotes de gado, que o produtor cadastra de novo.
+      });
+
+    // Versão 4: remove as tabelas antigas, já copiadas na versão 3.
+    this.version(4).stores({ lotes: null, animals: null });
   }
 }
 

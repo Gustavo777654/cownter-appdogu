@@ -1,20 +1,5 @@
 export type SyncStatus = "pending" | "synced";
 
-export const STATUS_LIST = [
-  "Saudável",
-  "Vacinação pendente",
-  "Em tratamento",
-] as const;
-export type AnimalStatus = (typeof STATUS_LIST)[number];
-
-export type Sexo = "Fêmea" | "Macho";
-
-/** Vacina que o animal já recebeu (registrada no cadastro). */
-export interface VacinaFeita {
-  nome: string;
-  data: string; // YYYY-MM-DD ("" quando o produtor não lembra)
-}
-
 /**
  * Campos de controle de todo registro que será sincronizado com o servidor.
  * Toda alteração feita offline fica "pending"; a exclusão é lógica (deletedAt)
@@ -28,10 +13,75 @@ interface Sincronizavel {
   syncStatus: SyncStatus;
 }
 
-/** Animal do rebanho bovino. */
-export interface Animal extends Sincronizavel {
+// ---------------------------------------------------------------------------
+// Lotes de gado (o conjunto de animais) e cabeças (cada animal, opcional)
+// ---------------------------------------------------------------------------
+
+export type Sexo = "Fêmea" | "Macho";
+export const SEXOS: readonly Sexo[] = ["Fêmea", "Macho"];
+
+/** Categorias de cada sexo, na ordem em que o animal cresce. */
+export const CATEGORIAS: Record<Sexo, readonly string[]> = {
+  Fêmea: [
+    "Bezerra",
+    "Vitela",
+    "Novilha",
+    "Vaca atrasada",
+    "Vaca mojando",
+    "Vaca parida",
+  ],
+  Macho: ["Bezerro", "Garrote", "Boi", "Touro"],
+};
+
+/**
+ * Uma linha da composição do lote: quantas cabeças de cada sexo e categoria.
+ * Um lote misto tem várias linhas (ex.: 12 vacas atrasadas + 1 touro).
+ */
+export interface LinhaComposicao {
+  sexo: Sexo;
+  categoria: string;
+  quantidade: number;
+}
+
+/** Vacina do lote: se foi aplicada e, quando foi só em parte, quantas cabeças faltam. */
+export interface VacinaLote {
+  nome: string;
+  aplicada: boolean;
+  /** Cabeças que ficaram sem a vacina (só vale quando aplicada = true). */
+  faltam: number | null;
+  data: string; // YYYY-MM-DD ("" quando não lembra ou não foi aplicada)
+}
+
+export const ORIGENS = ["Nascido na fazenda", "Comprado"] as const;
+export type Origem = (typeof ORIGENS)[number];
+
+export const SITUACOES_LOTE_GADO = ["Normal", "Separado para venda"] as const;
+export type SituacaoLoteGado = (typeof SITUACOES_LOTE_GADO)[number];
+
+export interface LoteGado extends Sincronizavel {
   id: string; // UUID gerado no aparelho
+  nome: string;
+  pastoId: string | null; // cada lote fica em um único pasto ("sem pasto" = null)
+  composicao: LinhaComposicao[];
+  raca: string;
+  pesoMedioKg: number | null;
+  origem: Origem | "";
+  situacao: SituacaoLoteGado;
+  vacinas: VacinaLote[];
+  observacoes: string;
+}
+
+export type LoteGadoInput = Omit<
+  LoteGado,
+  "id" | "createdAt" | "updatedAt" | "deletedAt" | "syncStatus"
+>;
+
+/** Uma cabeça cadastrada individualmente dentro de um lote (opcional). */
+export interface Cabeca extends Sincronizavel {
+  id: string;
+  loteGadoId: string;
   brinco: string;
+  cor: string;
   nome: string;
   raca: string;
   sexo: Sexo;
@@ -39,35 +89,32 @@ export interface Animal extends Sincronizavel {
   pesoKg: number | null;
   mae: string;
   pai: string;
-  status: AnimalStatus;
   observacoes: string;
-  loteId: string | null; // pasto onde o animal está (um único lote por vez)
-  vacinas: VacinaFeita[];
 }
 
-export type AnimalInput = Omit<
-  Animal,
-  "id" | "createdAt" | "updatedAt" | "deletedAt" | "syncStatus"
+export type CabecaInput = Omit<
+  Cabeca,
+  "id" | "loteGadoId" | "createdAt" | "updatedAt" | "deletedAt" | "syncStatus"
 >;
 
 // ---------------------------------------------------------------------------
-// Lotes (pastos)
+// Pastos (o terreno)
 // ---------------------------------------------------------------------------
 
 /** Quantidade de capim disponível no pasto. */
 export const NIVEIS_PASTO = ["Alto", "Médio", "Baixo"] as const;
 export type NivelPasto = (typeof NIVEIS_PASTO)[number];
 
-/** "Reservado" = pasto em descanso, sem animais (rodízio de pastagem). */
-export type SituacaoLote = "Em uso" | "Reservado";
+/** "Reservado" = pasto em descanso, sem lotes de gado (rodízio de pastagem). */
+export type SituacaoPasto = "Em uso" | "Reservado";
 
-export interface Lote extends Sincronizavel {
+export interface Pasto extends Sincronizavel {
   id: string;
   nome: string;
   areaHa: number | null;
   nivelPasto: NivelPasto;
   nivelEm: string; // YYYY-MM-DD: quando o nível foi atualizado
-  situacao: SituacaoLote;
+  situacao: SituacaoPasto;
   situacaoDesde: string; // YYYY-MM-DD: desde quando está nessa situação
 
   // Rotina do remédio: repete a cada N meses a partir da última aplicação.
@@ -79,12 +126,12 @@ export interface Lote extends Sincronizavel {
   salIntervaloDias: number | null;
 }
 
-export type LoteInput = Pick<Lote, "nome" | "areaHa" | "nivelPasto">;
+export type PastoInput = Pick<Pasto, "nome" | "areaHa" | "nivelPasto">;
 
-/** Tarefa de um lote (arrumar cerca, jogar adubo, roçar, jogar veneno...). */
+/** Tarefa de um pasto (arrumar cerca, jogar adubo, roçar, jogar veneno...). */
 export interface Tarefa extends Sincronizavel {
   id: string;
-  loteId: string;
+  pastoId: string;
   titulo: string;
   observacao: string;
   prazo: string; // YYYY-MM-DD ("" = sem prazo)
@@ -92,10 +139,10 @@ export interface Tarefa extends Sincronizavel {
   feitaEm: string | null; // ISO
 }
 
-/** Observação livre sobre um lote. */
+/** Observação livre sobre um pasto. */
 export interface Nota extends Sincronizavel {
   id: string;
-  loteId: string;
+  pastoId: string;
   texto: string;
   data: string; // YYYY-MM-DD
 }

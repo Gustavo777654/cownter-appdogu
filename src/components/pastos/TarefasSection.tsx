@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import { CheckSquare, Plus, Square, Trash, Warning } from "@phosphor-icons/react";
-import { alternarTarefa, criarTarefa, excluirTarefa } from "@/lib/lotes";
+import { alternarTarefa, criarTarefa, excluirTarefa } from "@/lib/pastos";
 import { diasParaVencer } from "@/lib/rotinas";
-import { useTarefasDoLote } from "@/lib/hooks";
+import { useTarefasDoPasto } from "@/lib/hooks";
 import { cn, hoje } from "@/lib/utils";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { PrazoBadge } from "@/components/ui/PrazoBadge";
 
-export function TarefasSection({ loteId }: { loteId: string }) {
-  const tarefas = useTarefasDoLote(loteId);
+export function TarefasSection({ pastoId }: { pastoId: string }) {
+  const tarefas = useTarefasDoPasto(pastoId);
   const [aberto, setAberto] = useState(false);
   const [titulo, setTitulo] = useState("");
   const [observacao, setObservacao] = useState("");
@@ -32,7 +32,7 @@ export function TarefasSection({ loteId }: { loteId: string }) {
     setErro("");
     setSalvando(true);
     try {
-      await criarTarefa(loteId, { titulo, observacao, prazo });
+      await criarTarefa(pastoId, { titulo, observacao, prazo });
       setAberto(false);
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Não foi possível salvar.");

@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Cow, DotsThreeOutline, House, Plant, Syringe } from "@phosphor-icons/react";
+import { CurrencyCircleDollar, Cow, House, Package, Plant } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 const ITENS = [
   { href: "/inicio", label: "Início", Icon: House, tambem: [] as string[] },
-  { href: "/rebanho", label: "Rebanho", Icon: Cow, tambem: [] as string[] },
-  // A tela de um pasto (/lote) também conta como "Lotes".
-  { href: "/lotes", label: "Lotes", Icon: Plant, tambem: ["/lote"] },
-  { href: "/vacinas", label: "Vacinas", Icon: Syringe, tambem: [] as string[] },
-  { href: "/mais", label: "Mais", Icon: DotsThreeOutline, tambem: [] as string[] },
+  // A tela de um lote de gado (/lote) também conta como "Gado".
+  { href: "/gado", label: "Gado", Icon: Cow, tambem: ["/lote"] },
+  // A tela de um pasto (/pasto) também conta como "Pastos".
+  { href: "/pastos", label: "Pastos", Icon: Plant, tambem: ["/pasto"] },
+  { href: "/recursos", label: "Recursos", Icon: Package, tambem: [] as string[] },
+  { href: "/financas", label: "Finanças", Icon: CurrencyCircleDollar, tambem: [] as string[] },
 ];
 
 /** Navegação principal: fica na base da tela, ao alcance do polegar. */

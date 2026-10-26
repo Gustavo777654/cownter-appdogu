@@ -1,4 +1,4 @@
-import type { Lote, Tarefa } from "./types";
+import type { Pasto, Tarefa } from "./types";
 
 // Funções puras (sem banco) para as datas das rotinas do pasto. Trabalham com
 // datas no formato YYYY-MM-DD e usam UTC por dentro, para o horário de verão
@@ -59,13 +59,13 @@ export function diasEntre(de: string, ate: string): number | null {
   );
 }
 
-export function rotinaDoLote(
-  lote: Lote,
+export function rotinaDoPasto(
+  pasto: Pasto,
   tipo: TipoRotina
 ): { ultima: string; intervalo: number | null } {
   return tipo === "remedio"
-    ? { ultima: lote.remedioUltimaData, intervalo: lote.remedioIntervaloMeses }
-    : { ultima: lote.salUltimaData, intervalo: lote.salIntervaloDias };
+    ? { ultima: pasto.remedioUltimaData, intervalo: pasto.remedioIntervaloMeses }
+    : { ultima: pasto.salUltimaData, intervalo: pasto.salIntervaloDias };
 }
 
 /** Data da próxima vez (null se faltar a última data ou o intervalo). */
@@ -94,8 +94,8 @@ export function descreverPrazo(dias: number): string {
 export interface Alerta {
   chave: string;
   tipo: "remedio" | "sal" | "tarefa";
-  loteId: string;
-  loteNome: string;
+  pastoId: string;
+  pastoNome: string;
   titulo: string;
   data: string;
   dias: number;
@@ -107,26 +107,26 @@ export interface Alerta {
  * Os pastos e tarefas excluídos devem ser filtrados antes de chamar.
  */
 export function coletarAlertas(
-  lotes: Lote[],
+  pastos: Pasto[],
   tarefas: Tarefa[],
   hojeIso: string,
   janela: number = JANELA_ALERTA_DIAS
 ): Alerta[] {
   const alertas: Alerta[] = [];
-  const nomes = new Map(lotes.map((l) => [l.id, l.nome]));
+  const nomes = new Map(pastos.map((l) => [l.id, l.nome]));
 
-  for (const lote of lotes) {
+  for (const pasto of pastos) {
     for (const tipo of ["remedio", "sal"] as TipoRotina[]) {
-      const { ultima, intervalo } = rotinaDoLote(lote, tipo);
+      const { ultima, intervalo } = rotinaDoPasto(pasto, tipo);
       const data = proximaData(ultima, tipo, intervalo);
       if (!data) continue;
       const dias = diasParaVencer(data, hojeIso);
       if (dias === null || dias > janela) continue;
       alertas.push({
-        chave: `${lote.id}:${tipo}`,
+        chave: `${pasto.id}:${tipo}`,
         tipo,
-        loteId: lote.id,
-        loteNome: lote.nome,
+        pastoId: pasto.id,
+        pastoNome: pasto.nome,
         titulo: tipo === "remedio" ? "Dar remédio" : "Levar sal",
         data,
         dias,
@@ -135,19 +135,19 @@ export function coletarAlertas(
   }
 
   for (const t of tarefas) {
-    if (t.feita || !t.prazo || !nomes.has(t.loteId)) continue;
+    if (t.feita || !t.prazo || !nomes.has(t.pastoId)) continue;
     const dias = diasParaVencer(t.prazo, hojeIso);
     if (dias === null || dias > janela) continue;
     alertas.push({
       chave: `tarefa:${t.id}`,
       tipo: "tarefa",
-      loteId: t.loteId,
-      loteNome: nomes.get(t.loteId)!,
+      pastoId: t.pastoId,
+      pastoNome: nomes.get(t.pastoId)!,
       titulo: t.titulo,
       data: t.prazo,
       dias,
     });
   }
 
-  return alertas.sort((a, b) => a.dias - b.dias || a.loteNome.localeCompare(b.loteNome, "pt-BR"));
+  return alertas.sort((a, b) => a.dias - b.dias || a.pastoNome.localeCompare(b.pastoNome, "pt-BR"));
 }

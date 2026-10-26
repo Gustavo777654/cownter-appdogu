@@ -4,21 +4,21 @@ import { useEffect, useState } from "react";
 import { Warning } from "@phosphor-icons/react";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Segmented } from "@/components/ui/Segmented";
-import { atualizarLote, criarLote } from "@/lib/lotes";
-import { NIVEIS_PASTO, type Lote, type NivelPasto } from "@/lib/types";
+import { atualizarPasto, criarPasto } from "@/lib/pastos";
+import { NIVEIS_PASTO, type Pasto, type NivelPasto } from "@/lib/types";
 import { COR_NIVEL_SELECIONADO } from "./nivel";
 
-interface LoteFormSheetProps {
+interface PastoFormSheetProps {
   open: boolean;
   /** Quando informado, edita este pasto; senão cria um novo. */
-  lote?: Lote | null;
+  pasto?: Pasto | null;
   onClose: () => void;
   /** Chamado depois de criar um pasto novo, com o pasto criado. */
-  onCreated?: (lote: Lote) => void;
+  onCreated?: (pasto: Pasto) => void;
 }
 
-export function LoteFormSheet({ open, lote, onClose, onCreated }: LoteFormSheetProps) {
-  const editando = !!lote;
+export function PastoFormSheet({ open, pasto, onClose, onCreated }: PastoFormSheetProps) {
+  const editando = !!pasto;
   const [nome, setNome] = useState("");
   const [area, setArea] = useState("");
   const [nivel, setNivel] = useState<NivelPasto>("Alto");
@@ -27,12 +27,12 @@ export function LoteFormSheet({ open, lote, onClose, onCreated }: LoteFormSheetP
 
   useEffect(() => {
     if (!open) return;
-    setNome(lote?.nome ?? "");
-    setArea(lote?.areaHa != null ? String(lote.areaHa).replace(".", ",") : "");
-    setNivel(lote?.nivelPasto ?? "Alto");
+    setNome(pasto?.nome ?? "");
+    setArea(pasto?.areaHa != null ? String(pasto.areaHa).replace(".", ",") : "");
+    setNivel(pasto?.nivelPasto ?? "Alto");
     setErro("");
     setSalvando(false);
-  }, [open, lote]);
+  }, [open, pasto]);
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
@@ -50,11 +50,11 @@ export function LoteFormSheet({ open, lote, onClose, onCreated }: LoteFormSheetP
     setSalvando(true);
     try {
       const dados = { nome, areaHa, nivelPasto: nivel };
-      if (lote) {
-        await atualizarLote(lote.id, dados);
+      if (pasto) {
+        await atualizarPasto(pasto.id, dados);
         onClose();
       } else {
-        const criado = await criarLote(dados);
+        const criado = await criarPasto(dados);
         onClose();
         onCreated?.(criado);
       }
@@ -74,13 +74,13 @@ export function LoteFormSheet({ open, lote, onClose, onCreated }: LoteFormSheetP
           <button type="button" onClick={onClose} className="btn-secondary flex-1">
             Cancelar
           </button>
-          <button type="submit" form="form-lote" disabled={salvando} className="btn-primary flex-1">
+          <button type="submit" form="form-pasto" disabled={salvando} className="btn-primary flex-1">
             {salvando ? "Salvando..." : editando ? "Salvar" : "Criar pasto"}
           </button>
         </div>
       }
     >
-      <form id="form-lote" onSubmit={salvar} className="space-y-4 pt-1">
+      <form id="form-pasto" onSubmit={salvar} className="space-y-4 pt-1">
         {erro && (
           <div
             role="alert"
@@ -92,11 +92,11 @@ export function LoteFormSheet({ open, lote, onClose, onCreated }: LoteFormSheetP
         )}
 
         <div>
-          <label htmlFor="lote-nome" className="field-label">
+          <label htmlFor="pasto-nome" className="field-label">
             Nome do pasto <span className="text-red-600">*</span>
           </label>
           <input
-            id="lote-nome"
+            id="pasto-nome"
             className="field"
             value={nome}
             onChange={(e) => setNome(e.target.value)}
@@ -107,11 +107,11 @@ export function LoteFormSheet({ open, lote, onClose, onCreated }: LoteFormSheetP
         </div>
 
         <div>
-          <label htmlFor="lote-area" className="field-label">
+          <label htmlFor="pasto-area" className="field-label">
             Área em hectares (opcional)
           </label>
           <input
-            id="lote-area"
+            id="pasto-area"
             className="field"
             inputMode="decimal"
             value={area}

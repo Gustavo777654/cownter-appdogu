@@ -1,46 +1,57 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Moon, Plant, Plus } from "@phosphor-icons/react";
+import { totalCabecas } from "@/lib/composicao";
 import { carregarDadosExemplo } from "@/lib/exemplo";
-import { useAnimais, useLotes } from "@/lib/hooks";
+import { useLotesGado, usePastos } from "@/lib/hooks";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { LoteCard } from "@/components/lotes/LoteCard";
-import { LoteFormSheet } from "@/components/lotes/LoteFormSheet";
+import { PastoCard } from "@/components/pastos/PastoCard";
+import { PastoFormSheet } from "@/components/pastos/PastoFormSheet";
 
-export default function LotesPage() {
-  const lotes = useLotes();
-  const animais = useAnimais();
+export default function PastosPage() {
+  const pastos = usePastos();
+  const lotes = useLotesGado();
   const router = useRouter();
   const [novo, setNovo] = useState(false);
 
-  const porLote = useMemo(() => {
-    const mapa = new Map<string, number>();
-    for (const a of animais ?? []) {
-      if (a.loteId) mapa.set(a.loteId, (mapa.get(a.loteId) ?? 0) + 1);
+  // O atalho da tela inicial abre direto o cadastro: /pastos?novo=1
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("novo") === "1") {
+      setNovo(true);
+      window.history.replaceState(null, "", "/pastos");
+    }
+  }, []);
+
+  const porPasto = useMemo(() => {
+    const mapa = new Map<string, { lotes: number; cabecas: number }>();
+    for (const l of lotes ?? []) {
+      if (!l.pastoId) continue;
+      const atual = mapa.get(l.pastoId) ?? { lotes: 0, cabecas: 0 };
+      mapa.set(l.pastoId, { lotes: atual.lotes + 1, cabecas: atual.cabecas + totalCabecas(l.composicao) });
     }
     return mapa;
-  }, [animais]);
+  }, [lotes]);
 
-  const semPasto = animais?.filter((a) => !a.loteId).length ?? 0;
-  const emUso = lotes?.filter((l) => l.situacao === "Em uso").length ?? 0;
-  const reservados = lotes?.filter((l) => l.situacao === "Reservado").length ?? 0;
-  const vazio = lotes !== undefined && lotes.length === 0;
+  const semPasto = lotes?.filter((l) => !l.pastoId).length ?? 0;
+  const emUso = pastos?.filter((p) => p.situacao === "Em uso").length ?? 0;
+  const reservados = pastos?.filter((p) => p.situacao === "Reservado").length ?? 0;
+  const vazio = pastos !== undefined && pastos.length === 0;
 
   return (
     <>
       <PageHeader
-        title="Lotes"
+        title="Pastos"
         subtitle={
-          lotes && lotes.length > 0
-            ? `${emUso} em uso · ${reservados} ${reservados === 1 ? "reservado" : "reservados"}`
-            : "Seus pastos e o rodízio do rebanho"
+          pastos && pastos.length > 0
+            ? `${emUso} em uso · ${reservados} descansando`
+            : "Seus pastos e o rodízio do gado"
         }
       />
 
       <div className="space-y-3 px-4">
-        {lotes === undefined ? (
+        {pastos === undefined ? (
           <p className="py-10 text-center text-sm text-dark/50">Carregando...</p>
         ) : vazio ? (
           <div className="card flex flex-col items-center py-10 text-center">
@@ -51,11 +62,7 @@ export default function LotesPage() {
             <p className="mt-1 max-w-xs text-sm text-dark/60">
               Cadastre seus pastos para controlar o remédio, o sal, as tarefas e o rodízio do gado.
             </p>
-            <button
-              type="button"
-              onClick={() => setNovo(true)}
-              className="btn-primary mt-5 w-full max-w-xs"
-            >
+            <button type="button" onClick={() => setNovo(true)} className="btn-primary mt-5 w-full max-w-xs">
               <Plus size={20} weight="bold" />
               Criar pasto
             </button>
@@ -72,15 +79,18 @@ export default function LotesPage() {
             {semPasto > 0 && (
               <div className="flex items-center gap-2 rounded-xl bg-earth-100 p-3 text-sm font-medium text-earth-900">
                 <Moon size={18} className="shrink-0" />
-                {semPasto} {semPasto === 1 ? "animal está" : "animais estão"} sem pasto definido.
+                {semPasto} {semPasto === 1 ? "lote está" : "lotes estão"} sem pasto definido.
               </div>
             )}
             <ul className="space-y-3">
-              {lotes.map((l) => (
-                <li key={l.id}>
-                  <LoteCard lote={l} qtdAnimais={porLote.get(l.id) ?? 0} />
-                </li>
-              ))}
+              {pastos.map((p) => {
+                const dados = porPasto.get(p.id);
+                return (
+                  <li key={p.id}>
+                    <PastoCard pasto={p} qtdLotes={dados?.lotes ?? 0} qtdCabecas={dados?.cabecas ?? 0} />
+                  </li>
+                );
+              })}
             </ul>
           </>
         )}
@@ -95,10 +105,10 @@ export default function LotesPage() {
         <Plus size={28} weight="bold" />
       </button>
 
-      <LoteFormSheet
+      <PastoFormSheet
         open={novo}
         onClose={() => setNovo(false)}
-        onCreated={(l) => router.push(`/lote?id=${l.id}`)}
+        onCreated={(p) => router.push(`/pasto?id=${p.id}`)}
       />
     </>
   );
