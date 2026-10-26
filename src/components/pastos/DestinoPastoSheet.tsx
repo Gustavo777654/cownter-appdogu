@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Moon, Plant, ProhibitInset } from "@phosphor-icons/react";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Erro } from "@/components/ui/Erro";
 import { moverLoteGado } from "@/lib/gado";
 import { usePastos } from "@/lib/hooks";
-import type { LoteGado } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import type { LoteGado, Pasto } from "@/lib/types";
+import { cn, formatDataBR, formatDesde } from "@/lib/utils";
 
 interface DestinoPastoSheetProps {
   open: boolean;
@@ -20,13 +20,21 @@ export function DestinoPastoSheet({ open, lote, onClose }: DestinoPastoSheetProp
   const pastos = usePastos();
   const [erro, setErro] = useState("");
   const [movendo, setMovendo] = useState(false);
+  const [confirmar, setConfirmar] = useState<Pasto | null>(null);
 
-  async function mover(pastoId: string | null) {
+  useEffect(() => {
+    if (open) {
+      setErro("");
+      setConfirmar(null);
+    }
+  }, [open]);
+
+  async function mover(pastoId: string | null, liberarPastoReservado = false) {
     if (!lote) return;
     setErro("");
     setMovendo(true);
     try {
-      await moverLoteGado(lote.id, pastoId);
+      await moverLoteGado(lote.id, pastoId, { liberarPastoReservado });
       setMovendo(false);
       onClose();
     } catch (e) {
@@ -39,8 +47,37 @@ export function DestinoPastoSheet({ open, lote, onClose }: DestinoPastoSheetProp
     <BottomSheet
       open={open && !!lote}
       onClose={onClose}
-      title={lote ? `Mover ${lote.nome}` : "Mover lote"}
+      title={confirmar ? "Pasto em descanso" : lote ? `Mover ${lote.nome}` : "Mover lote"}
+      footer={
+        confirmar ? (
+          <div className="flex gap-3">
+            <button type="button" onClick={() => setConfirmar(null)} className="btn-secondary flex-1">
+              Voltar
+            </button>
+            <button
+              type="button"
+              disabled={movendo}
+              onClick={() => mover(confirmar.id, true)}
+              className="btn-primary flex-1"
+            >
+              {movendo ? "Movendo..." : "Sim, mover"}
+            </button>
+          </div>
+        ) : undefined
+      }
     >
+      {confirmar && lote ? (
+        <div className="space-y-3 pt-1">
+          <Erro texto={erro} />
+          <p className="text-base text-dark/80">
+            O pasto <strong>{confirmar.nome}</strong> está reservado (descansando) desde{" "}
+            <strong>{formatDataBR(confirmar.situacaoDesde)}</strong> ({formatDesde(confirmar.situacaoDesde)}).
+          </p>
+          <p className="text-base text-dark/80">
+            Tem certeza que quer colocar o lote <strong>{lote.nome}</strong> nele? O pasto volta a ficar em uso.
+          </p>
+        </div>
+      ) : (
       <div className="space-y-2 pt-1">
         <p className="text-sm text-dark/60">Escolha o pasto de destino.</p>
         <Erro texto={erro} />
@@ -54,8 +91,8 @@ export function DestinoPastoSheet({ open, lote, onClose }: DestinoPastoSheetProp
                 <li key={p.id}>
                   <button
                     type="button"
-                    disabled={reservado || movendo}
-                    onClick={() => mover(p.id)}
+                    disabled={movendo}
+                    onClick={() => (reservado ? setConfirmar(p) : mover(p.id))}
                     className={cn(
                       "flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors",
                       reservado
@@ -71,7 +108,9 @@ export function DestinoPastoSheet({ open, lote, onClose }: DestinoPastoSheetProp
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-semibold text-dark">{p.nome}</span>
                       <span className="block text-xs text-dark/55">
-                        {reservado ? "Descansando: libere o pasto para receber lotes" : `Capim ${p.nivelPasto.toLowerCase()}`}
+                        {reservado
+                          ? `Descansando desde ${formatDataBR(p.situacaoDesde)}`
+                          : `Capim ${p.nivelPasto.toLowerCase()}`}
                       </span>
                     </span>
                   </button>
@@ -100,6 +139,7 @@ export function DestinoPastoSheet({ open, lote, onClose }: DestinoPastoSheetProp
           </p>
         )}
       </div>
+      )}
     </BottomSheet>
   );
 }

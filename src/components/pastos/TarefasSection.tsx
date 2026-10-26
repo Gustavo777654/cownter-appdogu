@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { CheckSquare, Plus, Square, Trash, Warning } from "@phosphor-icons/react";
+import { ArrowCounterClockwise, CheckSquare, Plus, Square, Trash, Warning } from "@phosphor-icons/react";
 import { alternarTarefa, criarTarefa, excluirTarefa } from "@/lib/pastos";
 import { diasParaVencer } from "@/lib/rotinas";
 import { useTarefasDoPasto } from "@/lib/hooks";
-import { cn, hoje } from "@/lib/utils";
+import { formatDataBR, hoje } from "@/lib/utils";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { PrazoBadge } from "@/components/ui/PrazoBadge";
 
@@ -60,31 +60,20 @@ export function TarefasSection({ pastoId }: { pastoId: string }) {
       )}
 
       <ul className="space-y-2">
-        {[...abertas, ...concluidas].map((t) => {
-          const dias = t.prazo && !t.feita ? diasParaVencer(t.prazo, hoje()) : null;
+        {abertas.map((t) => {
+          const dias = t.prazo ? diasParaVencer(t.prazo, hoje()) : null;
           return (
             <li key={t.id} className="card flex items-start gap-3 p-3">
               <button
                 type="button"
                 onClick={() => alternarTarefa(t.id)}
-                aria-label={t.feita ? "Reabrir tarefa" : "Concluir tarefa"}
+                aria-label={`Marcar como feita: ${t.titulo}`}
                 className="mt-0.5 shrink-0 text-brand-700"
               >
-                {t.feita ? (
-                  <CheckSquare size={28} weight="fill" />
-                ) : (
-                  <Square size={28} className="text-dark/35" />
-                )}
+                <Square size={28} className="text-dark/35" />
               </button>
               <div className="min-w-0 flex-1">
-                <p
-                  className={cn(
-                    "text-base font-semibold text-dark",
-                    t.feita && "text-dark/45 line-through"
-                  )}
-                >
-                  {t.titulo}
-                </p>
+                <p className="text-base font-semibold text-dark">{t.titulo}</p>
                 {t.observacao && (
                   <p className="mt-0.5 whitespace-pre-wrap text-sm text-dark/60">{t.observacao}</p>
                 )}
@@ -93,7 +82,7 @@ export function TarefasSection({ pastoId }: { pastoId: string }) {
               <button
                 type="button"
                 onClick={() => excluirTarefa(t.id)}
-                aria-label="Excluir tarefa"
+                aria-label={`Excluir tarefa: ${t.titulo}`}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-dark/40 hover:bg-red-50 hover:text-red-600"
               >
                 <Trash size={20} />
@@ -102,6 +91,51 @@ export function TarefasSection({ pastoId }: { pastoId: string }) {
           );
         })}
       </ul>
+
+      {concluidas.length > 0 && (
+        <details className="mt-4 rounded-2xl border border-brand-100 bg-white">
+          <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-3 text-base font-bold text-dark">
+            <CheckSquare size={22} weight="fill" className="text-brand-700" />
+            Tarefas feitas ({concluidas.length})
+          </summary>
+          <ul className="space-y-2 border-t border-brand-100 p-3">
+            {concluidas.map((t) => (
+              <li key={t.id} className="rounded-xl bg-brand-50/50 p-3">
+                <p className="text-base font-semibold text-dark">{t.titulo}</p>
+                {t.observacao && (
+                  <p className="mt-0.5 whitespace-pre-wrap text-sm text-dark/60">{t.observacao}</p>
+                )}
+                <p className="mt-1 text-xs text-dark/55">
+                  {t.prazo && <>Prazo: {formatDataBR(t.prazo)} · </>}
+                  Feita em {t.feitaEm ? new Date(t.feitaEm).toLocaleDateString("pt-BR") : "—"}
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => alternarTarefa(t.id)}
+                    className="btn-secondary min-h-10 flex-1 px-3 text-sm"
+                  >
+                    <ArrowCounterClockwise size={16} />
+                    Reabrir
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => excluirTarefa(t.id)}
+                    aria-label={`Apagar tarefa feita: ${t.titulo}`}
+                    className="btn min-h-10 flex-1 border border-red-200 bg-white px-3 text-sm text-red-600 hover:bg-red-50"
+                  >
+                    <Trash size={16} />
+                    Apagar
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p className="px-4 pb-3 text-xs text-dark/50">
+            Para apagar as tarefas feitas sozinhas depois de um tempo, use o Perfil.
+          </p>
+        </details>
+      )}
 
       <BottomSheet
         open={aberto}

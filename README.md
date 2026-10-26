@@ -35,7 +35,7 @@ npm start          # http://localhost:3000
 ### Testes automatizados
 
 ```bash
-npm test           # 46 testes: lotes de gado, cabeças, pastos, rodízio, rotinas, alertas, datas e migração do banco
+npm test           # 49 testes: lotes de gado, cabeças, pastos, rodízio, rotinas, alertas, datas e migração do banco
 ```
 
 ## Lotes de gado, pastos e rotinas
@@ -117,3 +117,11 @@ src/
 - [ ] Localização do lote com GPS (e mapa offline, se der tempo)
 - [ ] Empacotar como APK com Capacitor (Android Studio)
 - [ ] Teste de campo com produtores da região
+
+## Ajustes pós-teste da etapa 3
+
+- Tarefa do Início abre a tela do pasto (rota corrigida).
+- Tarefas feitas ficam numa seção "Tarefas feitas (N)" abaixo da lista, com Reabrir e Apagar. Em Perfil > Configurações dá para apagar sozinhas após 7/30/90/180 dias.
+- Origem do lote é texto livre (com sugestões).
+- Aviso "lotes sem pasto" na aba Pastos abre a lista desses lotes.
+- Mover lote para pasto descansando pede confirmação ("reservado desde dd/mm/aaaa"); ao confirmar, o pasto volta a "Em uso".

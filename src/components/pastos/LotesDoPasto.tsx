@@ -5,6 +5,7 @@ import { ArrowsLeftRight, Plus } from "@phosphor-icons/react";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Erro } from "@/components/ui/Erro";
 import { descreverCabecas, totalCabecas, totalDeLotes } from "@/lib/composicao";
+import { formatDataBR, formatDesde } from "@/lib/utils";
 import { moverLoteGado } from "@/lib/gado";
 import { useLotesGado, usePastos } from "@/lib/hooks";
 import type { LoteGado, Pasto } from "@/lib/types";
@@ -57,7 +58,8 @@ export function LotesDoPasto({ pasto }: { pasto: Pasto }) {
 
       {reservado && (
         <p className="mb-3 text-sm text-earth-800">
-          Este pasto está reservado (descansando). Libere-o para uso para colocar lotes nele.
+          Este pasto está reservado (descansando). Se trouxer um lote para ele, o app pede confirmação e o pasto volta a
+          ficar em uso.
         </p>
       )}
 
@@ -148,10 +150,12 @@ function EscolherLoteSheet({
           <div>
             <h3 className="mb-2 text-sm font-bold text-dark/70">De outros lugares (vêm para cá)</h3>
             {reservado && (
-              <p className="mb-2 text-xs text-earth-800">Pasto reservado: libere-o antes de trazer lotes.</p>
+              <p className="mb-2 text-xs text-earth-800">
+                Pasto reservado (descansando): o app vai pedir confirmação antes de trazer.
+              </p>
             )}
             <ul className="space-y-2">
-              {fora.map((l) => item(l, l.pastoId ? (nomesPastos.get(l.pastoId) ?? "outro pasto") : "sem pasto", reservado))}
+              {fora.map((l) => item(l, l.pastoId ? (nomesPastos.get(l.pastoId) ?? "outro pasto") : "sem pasto", false))}
             </ul>
           </div>
         )}
@@ -171,7 +175,7 @@ function TrazerLoteSheet({ pasto, lote, onClose }: { pasto: Pasto; lote: LoteGad
     setErro("");
     setMovendo(true);
     try {
-      await moverLoteGado(lote.id, pasto.id);
+      await moverLoteGado(lote.id, pasto.id, { liberarPastoReservado: true });
       setMovendo(false);
       onClose();
     } catch (e) {
@@ -202,6 +206,12 @@ function TrazerLoteSheet({ pasto, lote, onClose }: { pasto: Pasto; lote: LoteGad
           <p className="text-base text-dark/80">
             Trazer <strong>{lote.nome}</strong> ({descreverCabecas(totalCabecas(lote.composicao))}) para{" "}
             <strong>{pasto.nome}</strong>?
+          </p>
+        )}
+        {lote && pasto.situacao === "Reservado" && (
+          <p className="rounded-xl bg-earth-100 p-3 text-sm text-earth-900">
+            Este pasto está reservado (descansando) desde <strong>{formatDataBR(pasto.situacaoDesde)}</strong> (
+            {formatDesde(pasto.situacaoDesde)}). Tem certeza? Ao trazer o lote, o pasto volta a ficar em uso.
           </p>
         )}
       </div>

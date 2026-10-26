@@ -1,7 +1,6 @@
 import { limparComposicao, totalCabecas } from "./composicao";
 import { db } from "./db";
 import {
-  ORIGENS,
   SITUACOES_LOTE_GADO,
   type Cabeca,
   type CabecaInput,
@@ -75,7 +74,8 @@ function limparLoteGado(input: LoteGadoInput): LoteGadoInput {
   if (peso !== null && (!Number.isFinite(peso) || peso <= 0 || peso > 2000)) {
     throw new Error("Peso inválido. Use um valor em kg, por exemplo 480 ou 320,5.");
   }
-  if (input.origem && !ORIGENS.includes(input.origem)) throw new Error("Origem inválida.");
+  const origem = input.origem.trim().replace(/\s+/g, " ");
+  if (origem.length > 120) throw new Error("A origem pode ter no máximo 120 letras.");
   if (!SITUACOES_LOTE_GADO.includes(input.situacao)) throw new Error("Situação inválida.");
 
   return {
@@ -84,7 +84,7 @@ function limparLoteGado(input: LoteGadoInput): LoteGadoInput {
     composicao,
     raca: input.raca.trim(),
     pesoMedioKg: peso,
-    origem: input.origem,
+    origem,
     situacao: input.situacao,
     vacinas: limparVacinas(input.vacinas, total),
     observacoes: input.observacoes.trim(),
@@ -148,13 +148,33 @@ export async function excluirLoteGado(id: string): Promise<void> {
 
 /**
  * Move o lote para um pasto (ou para "sem pasto", com pastoId = null).
- * Um pasto reservado (descansando) não recebe lotes.
+ * Um pasto reservado (descansando) só recebe o lote se o produtor confirmar
+ * (liberarPastoReservado = true): nesse caso o pasto volta a ficar "Em uso".
  */
-export async function moverLoteGado(id: string, pastoId: string | null): Promise<void> {
-  const lote = await loteGadoPorId(id);
-  if (lote.pastoId === pastoId) return;
-  await validarPasto(pastoId, lote.pastoId);
-  await db.lotesGado.update(id, { pastoId, updatedAt: agora(), syncStatus: "pending" });
+export async function moverLoteGado(
+  id: string,
+  pastoId: string | null,
+  opcoes: { liberarPastoReservado?: boolean } = {}
+): Promise<void> {
+  await db.transaction("rw", db.lotesGado, db.pastos, async () => {
+    const lote = await loteGadoPorId(id);
+    if (lote.pastoId === pastoId) return;
+
+    if (pastoId && opcoes.liberarPastoReservado) {
+      const pasto = await db.pastos.get(pastoId);
+      if (pasto && !pasto.deletedAt && pasto.situacao === "Reservado") {
+        await db.pastos.update(pastoId, {
+          situacao: "Em uso",
+          situacaoDesde: hoje(),
+          updatedAt: agora(),
+          syncStatus: "pending",
+        });
+      }
+    }
+
+    await validarPasto(pastoId, lote.pastoId);
+    await db.lotesGado.update(id, { pastoId, updatedAt: agora(), syncStatus: "pending" });
+  });
 }
 
 // ---------------------------------------------------------------------------

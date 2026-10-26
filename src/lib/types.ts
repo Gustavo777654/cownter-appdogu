@@ -52,8 +52,8 @@ export interface VacinaLote {
   data: string; // YYYY-MM-DD ("" quando não lembra ou não foi aplicada)
 }
 
-export const ORIGENS = ["Nascido na fazenda", "Comprado"] as const;
-export type Origem = (typeof ORIGENS)[number];
+/** Sugestões para o campo de origem, que é texto livre (o produtor escreve o que quiser). */
+export const SUGESTOES_ORIGEM = ["Nascido na fazenda", "Comprado", "Doação", "Troca"] as const;
 
 export const SITUACOES_LOTE_GADO = ["Normal", "Separado para venda"] as const;
 export type SituacaoLoteGado = (typeof SITUACOES_LOTE_GADO)[number];
@@ -65,7 +65,7 @@ export interface LoteGado extends Sincronizavel {
   composicao: LinhaComposicao[];
   raca: string;
   pesoMedioKg: number | null;
-  origem: Origem | "";
+  origem: string; // texto livre: de onde o lote veio ("" = não informado)
   situacao: SituacaoLoteGado;
   vacinas: VacinaLote[];
   observacoes: string;

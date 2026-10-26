@@ -7,6 +7,7 @@ import { db } from "./db";
 import { criarLoteGado, moverLoteGado } from "./gado";
 import {
   alterarSituacao,
+  apagarTarefasFeitasAntigas,
   alternarTarefa,
   atualizarNivel,
   atualizarPasto,
@@ -253,5 +254,50 @@ describe("tarefas e observações", () => {
     await assert.rejects(() => criarNota(l.id, "   "), /Escreva/);
     await excluirNota(n.id);
     assert.ok((await db.notas.get(n.id))?.deletedAt);
+  });
+});
+
+describe("mover lote para pasto reservado e apagar tarefas feitas antigas", () => {
+  it("pasto reservado só recebe o lote com confirmação, e então volta a ficar em uso", async () => {
+    const descanso = await novoPasto("Descanso");
+    await alterarSituacao(descanso.id, "Reservado");
+    const l = await novoLote("Lote X");
+
+    await assert.rejects(() => moverLoteGado(l.id, descanso.id), /reservado/);
+    assert.equal((await db.lotesGado.get(l.id))?.pastoId, null);
+
+    await moverLoteGado(l.id, descanso.id, { liberarPastoReservado: true });
+    assert.equal((await db.lotesGado.get(l.id))?.pastoId, descanso.id);
+    const depois = await db.pastos.get(descanso.id);
+    assert.equal(depois?.situacao, "Em uso");
+    assert.equal(depois?.situacaoDesde, hoje());
+  });
+
+  it("a confirmação não muda pasto que não estava reservado", async () => {
+    const p = await novoPasto("Normal");
+    const l = await novoLote("Lote Y");
+    await moverLoteGado(l.id, p.id, { liberarPastoReservado: true });
+    const depois = await db.pastos.get(p.id);
+    assert.equal(depois?.situacao, "Em uso");
+    assert.equal(depois?.situacaoDesde, hoje());
+  });
+
+  it("apaga só as tarefas feitas há mais dias que o limite", async () => {
+    const p = await novoPasto("Tarefas");
+    const velha = await criarTarefa(p.id, { titulo: "Velha", observacao: "", prazo: "" });
+    const nova = await criarTarefa(p.id, { titulo: "Nova", observacao: "", prazo: "" });
+    const aberta = await criarTarefa(p.id, { titulo: "Aberta", observacao: "", prazo: "" });
+    await alternarTarefa(velha.id);
+    await alternarTarefa(nova.id);
+    const agora = Date.now();
+    await db.tarefas.update(velha.id, { feitaEm: new Date(agora - 40 * 86_400_000).toISOString() });
+    await db.tarefas.update(nova.id, { feitaEm: new Date(agora - 5 * 86_400_000).toISOString() });
+
+    assert.equal(await apagarTarefasFeitasAntigas(null, agora), 0);
+    assert.equal(await apagarTarefasFeitasAntigas(30, agora), 1);
+    assert.ok((await db.tarefas.get(velha.id))?.deletedAt);
+    assert.equal((await db.tarefas.get(nova.id))?.deletedAt, null);
+    assert.equal((await db.tarefas.get(aberta.id))?.deletedAt, null);
+    assert.equal(await apagarTarefasFeitasAntigas(30, agora), 0);
   });
 });

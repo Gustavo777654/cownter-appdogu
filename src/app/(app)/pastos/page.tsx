@@ -2,11 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Moon, Plant, Plus } from "@phosphor-icons/react";
-import { totalCabecas } from "@/lib/composicao";
+import { ArrowsLeftRight, CaretRight, Moon, Plant, Plus } from "@phosphor-icons/react";
+import { descreverCabecas, resumoComposicao, totalCabecas } from "@/lib/composicao";
 import { carregarDadosExemplo } from "@/lib/exemplo";
 import { useLotesGado, usePastos } from "@/lib/hooks";
+import type { LoteGado } from "@/lib/types";
+import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BottomSheet } from "@/components/ui/BottomSheet";
+import { DestinoPastoSheet } from "@/components/pastos/DestinoPastoSheet";
 import { PastoCard } from "@/components/pastos/PastoCard";
 import { PastoFormSheet } from "@/components/pastos/PastoFormSheet";
 
@@ -15,6 +19,8 @@ export default function PastosPage() {
   const lotes = useLotesGado();
   const router = useRouter();
   const [novo, setNovo] = useState(false);
+  const [listandoSemPasto, setListandoSemPasto] = useState(false);
+  const [escolhendoPasto, setEscolhendoPasto] = useState<LoteGado | null>(null);
 
   // O atalho da tela inicial abre direto o cadastro: /pastos?novo=1
   useEffect(() => {
@@ -34,7 +40,8 @@ export default function PastosPage() {
     return mapa;
   }, [lotes]);
 
-  const semPasto = lotes?.filter((l) => !l.pastoId).length ?? 0;
+  const lotesSemPasto = useMemo(() => (lotes ?? []).filter((l) => !l.pastoId), [lotes]);
+  const semPasto = lotesSemPasto.length;
   const emUso = pastos?.filter((p) => p.situacao === "Em uso").length ?? 0;
   const reservados = pastos?.filter((p) => p.situacao === "Reservado").length ?? 0;
   const vazio = pastos !== undefined && pastos.length === 0;
@@ -77,10 +84,17 @@ export default function PastosPage() {
         ) : (
           <>
             {semPasto > 0 && (
-              <div className="flex items-center gap-2 rounded-xl bg-earth-100 p-3 text-sm font-medium text-earth-900">
+              <button
+                type="button"
+                onClick={() => setListandoSemPasto(true)}
+                className="flex w-full items-center gap-2 rounded-xl bg-earth-100 p-3 text-left text-sm font-medium text-earth-900 active:bg-earth-200"
+              >
                 <Moon size={18} className="shrink-0" />
-                {semPasto} {semPasto === 1 ? "lote está" : "lotes estão"} sem pasto definido.
-              </div>
+                <span className="flex-1">
+                  {semPasto} {semPasto === 1 ? "lote está" : "lotes estão"} sem pasto definido. Toque para ver.
+                </span>
+                <CaretRight size={16} className="shrink-0" />
+              </button>
             )}
             <ul className="space-y-3">
               {pastos.map((p) => {
@@ -104,6 +118,34 @@ export default function PastosPage() {
       >
         <Plus size={28} weight="bold" />
       </button>
+
+      <BottomSheet
+        open={listandoSemPasto && semPasto > 0}
+        onClose={() => setListandoSemPasto(false)}
+        title="Lotes sem pasto"
+      >
+        <ul className="space-y-2 pt-1">
+          {lotesSemPasto.map((l) => (
+            <li key={l.id} className="card flex items-center gap-3 p-3">
+              <Link prefetch={false} href={`/lote?id=${l.id}`} className="min-w-0 flex-1">
+                <span className="block truncate font-bold text-dark">{l.nome}</span>
+                <span className="block text-sm text-dark/60">
+                  {descreverCabecas(totalCabecas(l.composicao))} · {resumoComposicao(l.composicao)}
+                </span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => setEscolhendoPasto(l)}
+                className="btn-secondary min-h-10 shrink-0 px-3 text-sm"
+              >
+                <ArrowsLeftRight size={16} />
+                Escolher pasto
+              </button>
+            </li>
+          ))}
+        </ul>
+      </BottomSheet>
+      <DestinoPastoSheet open={!!escolhendoPasto} lote={escolhendoPasto} onClose={() => setEscolhendoPasto(null)} />
 
       <PastoFormSheet
         open={novo}
