@@ -226,6 +226,19 @@ export async function alternarTarefa(id: string): Promise<void> {
   });
 }
 
+/**
+ * Apaga (exclusão lógica) as tarefas já feitas há mais de `dias` dias.
+ * Retorna quantas foram apagadas. `dias` nulo ou inválido não apaga nada.
+ */
+export async function apagarTarefasFeitasAntigas(dias: number | null, agoraMs: number = Date.now()): Promise<number> {
+  if (dias === null || !Number.isInteger(dias) || dias < 1) return 0;
+  const limite = new Date(agoraMs - dias * 86_400_000).toISOString();
+  const t = new Date(agoraMs).toISOString();
+  return db.tarefas
+    .filter((x) => !x.deletedAt && x.feita && x.feitaEm !== null && x.feitaEm < limite)
+    .modify({ deletedAt: t, updatedAt: t, syncStatus: "pending" });
+}
+
 export async function excluirTarefa(id: string): Promise<void> {
   const t = agora();
   await db.tarefas.update(id, { deletedAt: t, updatedAt: t, syncStatus: "pending" });

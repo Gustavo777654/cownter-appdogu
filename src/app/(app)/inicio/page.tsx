@@ -102,7 +102,7 @@ export default function InicioPage() {
                 const Icone = ICONE_ALERTA[a.tipo];
                 return (
                   <li key={a.chave}>
-                    <Link prefetch={false} href={`/lote?id=${a.pastoId}`} className="card flex items-center gap-3 p-3">
+                    <Link prefetch={false} href={`/pasto?id=${a.pastoId}`} className="card flex items-center gap-3 p-3">
                       <div
                         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
                           a.dias < 0 ? "bg-red-100 text-red-700" : "bg-brand-100 text-brand-700"

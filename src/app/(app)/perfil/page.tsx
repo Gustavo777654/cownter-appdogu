@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CloudArrowUp, SignOut, WifiHigh, WifiSlash } from "@phosphor-icons/react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { lerConfiguracao, OPCOES_APAGAR_TAREFAS, salvarConfiguracao } from "@/lib/config";
+import { apagarTarefasFeitasAntigas } from "@/lib/pastos";
 import { useOnline, usePendentesSync } from "@/lib/hooks";
 
 export default function PerfilPage() {
@@ -11,6 +14,18 @@ export default function PerfilPage() {
   const router = useRouter();
   const online = useOnline();
   const pendentes = usePendentesSync();
+  const [apagarDias, setApagarDias] = useState<number | null>(null);
+
+  useEffect(() => {
+    setApagarDias(lerConfiguracao().apagarTarefasFeitasDias);
+  }, []);
+
+  async function trocarApagar(valor: string) {
+    const dias = valor === "" ? null : Number(valor);
+    setApagarDias(dias);
+    salvarConfiguracao({ apagarTarefasFeitasDias: dias });
+    await apagarTarefasFeitasAntigas(dias);
+  }
 
   function sair() {
     logout();
@@ -71,6 +86,28 @@ export default function PerfilPage() {
               </p>
             </div>
           </div>
+        </div>
+
+        <div className="card">
+          <p className="text-xs text-dark/55">Configurações</p>
+          <label htmlFor="cfg-apagar" className="mt-1 block font-semibold text-dark">
+            Apagar tarefas feitas sozinhas
+          </label>
+          <select
+            id="cfg-apagar"
+            className="field mt-2"
+            value={apagarDias === null ? "" : String(apagarDias)}
+            onChange={(e) => trocarApagar(e.target.value)}
+          >
+            {OPCOES_APAGAR_TAREFAS.map((o) => (
+              <option key={o.rotulo} value={o.dias === null ? "" : String(o.dias)}>
+                {o.rotulo}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1.5 text-xs text-dark/55">
+            As tarefas feitas ficam guardadas em cada pasto, na lista &quot;Tarefas feitas&quot;, até serem apagadas.
+          </p>
         </div>
 
         <button type="button" onClick={sair} className="btn-secondary w-full">

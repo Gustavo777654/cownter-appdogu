@@ -7,10 +7,9 @@ import { Segmented } from "@/components/ui/Segmented";
 import { atualizarLoteGado, criarLoteGado } from "@/lib/gado";
 import { usePastos } from "@/lib/hooks";
 import {
-  ORIGENS,
+  SUGESTOES_ORIGEM,
   SITUACOES_LOTE_GADO,
   type LoteGado,
-  type Origem,
   type SituacaoLoteGado,
 } from "@/lib/types";
 import {
@@ -63,7 +62,7 @@ export function LoteGadoFormSheet({
   const [pastoId, setPastoId] = useState("");
   const [raca, setRaca] = useState("");
   const [peso, setPeso] = useState("");
-  const [origem, setOrigem] = useState<Origem | "">("");
+  const [origem, setOrigem] = useState("");
   const [situacao, setSituacao] = useState<SituacaoLoteGado>("Normal");
   const [vacinas, setVacinas] = useState<VacinaEditavel[]>([]);
   const [observacoes, setObservacoes] = useState("");
@@ -246,19 +245,21 @@ export function LoteGadoFormSheet({
               <label htmlFor="lg-origem" className="field-label">
                 Origem
               </label>
-              <select
+              <input
                 id="lg-origem"
                 className="field"
+                list="lg-origens"
                 value={origem}
-                onChange={(e) => setOrigem(e.target.value as Origem | "")}
-              >
-                <option value="">Não informar</option>
-                {ORIGENS.map((o) => (
-                  <option key={o} value={o}>
-                    {o}
-                  </option>
+                onChange={(e) => setOrigem(e.target.value)}
+                placeholder="Ex: Comprado da Fazenda Boa Vista"
+                maxLength={120}
+                autoComplete="off"
+              />
+              <datalist id="lg-origens">
+                {SUGESTOES_ORIGEM.map((o) => (
+                  <option key={o} value={o} />
                 ))}
-              </select>
+              </datalist>
             </div>
 
             <div>
