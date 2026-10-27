@@ -19,6 +19,7 @@ import { useLoteGado, usePasto } from "@/lib/hooks";
 import type { LoteGado, LoteGadoInput } from "@/lib/types";
 import { cn, formatDataBR, formatPeso } from "@/lib/utils";
 import { CabecasSection } from "@/components/gado/CabecasSection";
+import { MoverCabecasSheet } from "@/components/gado/MoverCabecasSheet";
 import { PartosSection } from "@/components/gado/PartosSection";
 import { LoteGadoFormSheet } from "@/components/gado/LoteGadoFormSheet";
 import { DestinoPastoSheet } from "@/components/pastos/DestinoPastoSheet";
@@ -48,6 +49,7 @@ export default function LotePage() {
   const pasto = usePasto(lote?.pastoId ?? null);
   const [editando, setEditando] = useState(false);
   const [movendo, setMovendo] = useState(false);
+  const [movendoCabecas, setMovendoCabecas] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
   const [erro, setErro] = useState("");
 
@@ -147,6 +149,10 @@ export default function LotePage() {
               Mover
             </button>
           </div>
+          <button type="button" onClick={() => setMovendoCabecas(true)} className="btn-secondary min-h-11 w-full text-sm">
+            <ArrowsLeftRight size={18} />
+            Mover algumas cabeças
+          </button>
           <button
             type="button"
             onClick={alternarVenda}
@@ -257,6 +263,7 @@ export default function LotePage() {
       </div>
 
       <LoteGadoFormSheet open={editando} lote={lote} onClose={() => setEditando(false)} />
+      <MoverCabecasSheet open={movendoCabecas} lote={lote} onClose={() => setMovendoCabecas(false)} />
       <DestinoPastoSheet open={movendo} lote={lote} onClose={() => setMovendo(false)} />
       <ConfirmSheet
         open={excluindo}

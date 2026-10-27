@@ -138,3 +138,8 @@ src/
 
 - Ao registrar o parto, a mãe pode ser escolhida entre as cabeças já cadastradas ou cadastrada na hora (brinco, nome, cor, raça); ela vira cabeça do lote.
 - A lista "Cabeças cadastradas (N)" fica recolhida; toca para abrir.
+
+### Mover algumas cabeças entre lotes
+
+- No lote: **Mover algumas cabeças**. Escolhe quantas de cada tipo saem (ex.: 3 novilhas), marca as cadastradas que vão junto e escolhe um lote existente ou um lote novo (no mesmo pasto).
+- Bezerro mamando e vaca parida com bezerro só saem pela desmama. Para mover todas as cabeças, use "Mover" (lote inteiro para outro pasto).
