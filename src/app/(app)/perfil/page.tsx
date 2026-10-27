@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, CloudArrowUp, SignOut, WifiHigh, WifiSlash } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { lerConfiguracao, OPCOES_APAGAR_TAREFAS, salvarConfiguracao } from "@/lib/config";
+import {
+  DESMAMA_MESES_PADRAO,
+  lerConfiguracao,
+  OPCOES_APAGAR_TAREFAS,
+  OPCOES_DESMAMA_MESES,
+  salvarConfiguracao,
+} from "@/lib/config";
 import { apagarTarefasFeitasAntigas } from "@/lib/pastos";
 import { useOnline, usePendentesSync } from "@/lib/hooks";
 
@@ -15,9 +21,12 @@ export default function PerfilPage() {
   const online = useOnline();
   const pendentes = usePendentesSync();
   const [apagarDias, setApagarDias] = useState<number | null>(null);
+  const [desmamaMeses, setDesmamaMeses] = useState<number>(DESMAMA_MESES_PADRAO);
 
   useEffect(() => {
-    setApagarDias(lerConfiguracao().apagarTarefasFeitasDias);
+    const cfg = lerConfiguracao();
+    setApagarDias(cfg.apagarTarefasFeitasDias);
+    setDesmamaMeses(cfg.desmamaMeses);
   }, []);
 
   async function trocarApagar(valor: string) {
@@ -25,6 +34,12 @@ export default function PerfilPage() {
     setApagarDias(dias);
     salvarConfiguracao({ apagarTarefasFeitasDias: dias });
     await apagarTarefasFeitasAntigas(dias);
+  }
+
+  function trocarDesmama(valor: string) {
+    const meses = Number(valor);
+    setDesmamaMeses(meses);
+    salvarConfiguracao({ desmamaMeses: meses });
   }
 
   function sair() {
@@ -107,6 +122,25 @@ export default function PerfilPage() {
           </select>
           <p className="mt-1.5 text-xs text-dark/55">
             As tarefas feitas ficam guardadas em cada pasto, na lista &quot;Tarefas feitas&quot;, até serem apagadas.
+          </p>
+
+          <label htmlFor="cfg-desmama" className="mt-4 block font-semibold text-dark">
+            Desmamar o bezerro com
+          </label>
+          <select
+            id="cfg-desmama"
+            className="field mt-2"
+            value={String(desmamaMeses)}
+            onChange={(e) => trocarDesmama(e.target.value)}
+          >
+            {OPCOES_DESMAMA_MESES.map((m) => (
+              <option key={m} value={m}>
+                {m} meses
+              </option>
+            ))}
+          </select>
+          <p className="mt-1.5 text-xs text-dark/55">
+            O Início avisa quando os bezerros chegarem nessa idade (contada a partir do parto registrado).
           </p>
         </div>
 

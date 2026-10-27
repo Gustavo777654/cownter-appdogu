@@ -19,6 +19,7 @@ import { useLoteGado, usePasto } from "@/lib/hooks";
 import type { LoteGado, LoteGadoInput } from "@/lib/types";
 import { cn, formatDataBR, formatPeso } from "@/lib/utils";
 import { CabecasSection } from "@/components/gado/CabecasSection";
+import { PartosSection } from "@/components/gado/PartosSection";
 import { LoteGadoFormSheet } from "@/components/gado/LoteGadoFormSheet";
 import { DestinoPastoSheet } from "@/components/pastos/DestinoPastoSheet";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
@@ -240,6 +241,8 @@ export default function LotePage() {
             </ul>
           )}
         </section>
+
+        <PartosSection lote={lote} />
 
         <CabecasSection lote={lote} />
 

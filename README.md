@@ -35,7 +35,7 @@ npm start          # http://localhost:3000
 ### Testes automatizados
 
 ```bash
-npm test           # 49 testes: lotes de gado, cabeças, pastos, rodízio, rotinas, alertas, datas e migração do banco
+npm test           # 60 testes: lotes de gado, cabeças, pastos, rodízio, rotinas, alertas, datas e migração do banco
 ```
 
 ## Lotes de gado, pastos e rotinas
@@ -125,3 +125,11 @@ src/
 - Origem do lote é texto livre (com sugestões).
 - Aviso "lotes sem pasto" na aba Pastos abre a lista desses lotes.
 - Mover lote para pasto descansando pede confirmação ("reservado desde dd/mm/aaaa"); ao confirmar, o pasto volta a "Em uso".
+
+## Etapa 4: parto e desmama
+
+- No lote com vacas: **Registrar parto** (sexo do bezerro, data, vaca opcional). O bezerro entra no lote da mãe e uma vaca mojando (ou atrasada) vira vaca parida.
+- O lote mostra bezerros mamando e desmamados.
+- **Desmamar**: escolhe os bezerros e manda para um lote novo (no mesmo pasto) ou para um lote existente; as mães voltam a ser vaca atrasada.
+- Prazo de desmama configurável em Perfil (padrão 7 meses); o Início avisa quando o bezerro chega nessa idade.
+- Banco local passou para a versão 5 (tabela `partos`); os dados anteriores são mantidos.

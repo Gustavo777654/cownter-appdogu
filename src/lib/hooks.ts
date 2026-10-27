@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { lerConfiguracao, type Configuracao } from "./config";
 import { db } from "./db";
-import type { Cabeca, LoteGado, Nota, Pasto, Tarefa } from "./types";
+import type { Cabeca, LoteGado, Nota, Parto, Pasto, Tarefa } from "./types";
 
 const ordenarTexto = (a: string, b: string) =>
   a.localeCompare(b, "pt-BR", { numeric: true });
@@ -90,6 +91,24 @@ export function useTarefasAbertas(): Tarefa[] | undefined {
   );
 }
 
+/** Partos de um lote (mais recentes primeiro). */
+export function usePartosDoLote(loteGadoId: string | null): Parto[] | undefined {
+  return useLiveQuery(async () => {
+    if (!loteGadoId) return [];
+    const todos = await db.partos
+      .where("loteGadoId")
+      .equals(loteGadoId)
+      .filter((p) => !p.deletedAt)
+      .toArray();
+    return todos.sort((a, b) => b.data.localeCompare(a.data) || b.createdAt.localeCompare(a.createdAt));
+  }, [loteGadoId]);
+}
+
+/** Partos ainda não desmamados de todos os lotes (para o aviso de desmama no Início). */
+export function usePartosAbertos(): Parto[] | undefined {
+  return useLiveQuery(() => db.partos.filter((p) => !p.deletedAt && !p.desmamado).toArray(), []);
+}
+
 /** Observações de um pasto, da mais recente para a mais antiga. */
 export function useNotasDoPasto(pastoId: string | null): Nota[] | undefined {
   return useLiveQuery(async () => {
@@ -112,6 +131,7 @@ export function usePendentesSync(): number | undefined {
       db.cabecas.where("syncStatus").equals("pending").count(),
       db.tarefas.where("syncStatus").equals("pending").count(),
       db.notas.where("syncStatus").equals("pending").count(),
+      db.partos.where("syncStatus").equals("pending").count(),
     ]);
     return contagens.reduce((soma, n) => soma + n, 0);
   }, []);
@@ -134,4 +154,11 @@ export function useOnline(): boolean {
   }, []);
 
   return online;
+}
+
+/** Configurações do produtor (guardadas no aparelho). Lidas ao abrir a tela. */
+export function useConfiguracao(): Configuracao | undefined {
+  const [cfg, setCfg] = useState<Configuracao | undefined>(undefined);
+  useEffect(() => setCfg(lerConfiguracao()), []);
+  return cfg;
 }
