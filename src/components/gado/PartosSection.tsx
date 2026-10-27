@@ -121,11 +121,18 @@ export function PartosSection({ lote }: { lote: LoteGado }) {
   );
 }
 
+const SEM_VACA = "";
+const NOVA_VACA = "__nova__";
+
 function RegistrarPartoSheet({ open, lote, onClose }: { open: boolean; lote: LoteGado; onClose: () => void }) {
   const cabecas = useCabecas(open ? lote.id : null);
   const [data, setData] = useState(hoje());
   const [sexo, setSexo] = useState<Sexo>("Fêmea");
-  const [vaca, setVaca] = useState("");
+  const [vacaSel, setVacaSel] = useState(SEM_VACA);
+  const [brinco, setBrinco] = useState("");
+  const [nome, setNome] = useState("");
+  const [cor, setCor] = useState("");
+  const [raca, setRaca] = useState("");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
 
@@ -133,22 +140,33 @@ function RegistrarPartoSheet({ open, lote, onClose }: { open: boolean; lote: Lot
     if (!open) return;
     setData(hoje());
     setSexo("Fêmea");
-    setVaca("");
+    setVacaSel(SEM_VACA);
+    setBrinco("");
+    setNome("");
+    setCor("");
+    setRaca(lote.raca);
     setErro("");
     setSalvando(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const opcoesVaca = (cabecas ?? [])
-    .filter((c) => c.sexo === "Fêmea")
-    .map((c) => c.brinco || c.nome || c.cor)
-    .filter(Boolean);
+  const femeas = (cabecas ?? []).filter((c) => c.sexo === "Fêmea");
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
     setErro("");
     setSalvando(true);
     try {
-      await registrarParto(lote.id, { data, sexoBezerro: sexo, vaca });
+      await registrarParto(lote.id, {
+        data,
+        sexoBezerro: sexo,
+        vaca:
+          vacaSel === NOVA_VACA
+            ? { brinco, nome, cor, raca }
+            : vacaSel === SEM_VACA
+              ? {}
+              : { cabecaId: vacaSel },
+      });
       onClose();
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Não foi possível registrar.");
@@ -189,26 +207,54 @@ function RegistrarPartoSheet({ open, lote, onClose }: { open: boolean; lote: Lot
             required
           />
         </div>
+
         <div>
           <label htmlFor="parto-vaca" className="field-label">
-            Vaca (brinco, nome ou cor) — opcional
+            Mãe do bezerro
           </label>
-          <input
-            id="parto-vaca"
-            className="field"
-            list="parto-vacas"
-            value={vaca}
-            onChange={(e) => setVaca(e.target.value)}
-            maxLength={60}
-            autoComplete="off"
-            placeholder="Ex: BR-001 ou Malhada"
-          />
-          <datalist id="parto-vacas">
-            {opcoesVaca.map((v) => (
-              <option key={v} value={v} />
+          <select id="parto-vaca" className="field" value={vacaSel} onChange={(e) => setVacaSel(e.target.value)}>
+            <option value={SEM_VACA}>Não informar</option>
+            {femeas.map((c) => (
+              <option key={c.id} value={c.id}>
+                {[c.brinco, c.nome, c.cor].filter(Boolean).join(" · ")}
+              </option>
             ))}
-          </datalist>
+            <option value={NOVA_VACA}>Cadastrar a vaca agora</option>
+          </select>
         </div>
+
+        {vacaSel === NOVA_VACA && (
+          <div className="space-y-4 rounded-xl border border-brand-100 bg-brand-50/40 p-3">
+            <p className="text-sm text-dark/70">
+              A vaca fica cadastrada como cabeça deste lote. Informe pelo menos o brinco, a cor ou o nome.
+            </p>
+            <div>
+              <label htmlFor="parto-brinco" className="field-label">
+                Brinco
+              </label>
+              <input id="parto-brinco" className="field" value={brinco} onChange={(e) => setBrinco(e.target.value)} autoComplete="off" />
+            </div>
+            <div>
+              <label htmlFor="parto-nome" className="field-label">
+                Nome
+              </label>
+              <input id="parto-nome" className="field" value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="off" />
+            </div>
+            <div>
+              <label htmlFor="parto-cor" className="field-label">
+                Cor
+              </label>
+              <input id="parto-cor" className="field" value={cor} onChange={(e) => setCor(e.target.value)} autoComplete="off" />
+            </div>
+            <div>
+              <label htmlFor="parto-raca" className="field-label">
+                Raça
+              </label>
+              <input id="parto-raca" className="field" value={raca} onChange={(e) => setRaca(e.target.value)} autoComplete="off" />
+            </div>
+          </div>
+        )}
+
         <p className="text-sm text-dark/60">
           O bezerro entra neste lote e uma vaca mojando (ou atrasada) passa a ser vaca parida.
         </p>

@@ -37,7 +37,7 @@ beforeEach(async () => {
 describe("registrar parto", () => {
   it("bezerro entra no lote e uma vaca mojando vira parida", async () => {
     const lote = await matrizes();
-    await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Fêmea", vaca: "BR-001" });
+    await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Fêmea", vaca: { brinco: "BR-001" } });
     const c = (await loteGadoPorId(lote.id)).composicao;
     assert.equal(qtd(c, "Vaca mojando"), 1);
     assert.equal(qtd(c, "Vaca parida"), 1);
@@ -45,22 +45,45 @@ describe("registrar parto", () => {
     assert.equal(totalCabecas(c), 9);
   });
 
+  it("vaca informada fica cadastrada como cabeça do lote; vaca já cadastrada é reaproveitada", async () => {
+    const lote = await matrizes();
+    const p1 = await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Fêmea", vaca: { cor: "Malhada", nome: "Estrela" } });
+    const cabs = await db.cabecas.where("loteGadoId").equals(lote.id).toArray();
+    assert.equal(cabs.length, 1);
+    assert.equal(cabs[0].sexo, "Fêmea");
+    assert.equal(cabs[0].raca, "Nelore"); // herda a raça do lote
+    assert.equal(p1.vacaCabecaId, cabs[0].id);
+    assert.equal(p1.vaca, "Estrela");
+
+    const p2 = await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Macho", vaca: { cabecaId: cabs[0].id } });
+    assert.equal(p2.vacaCabecaId, cabs[0].id);
+    assert.equal(await db.cabecas.where("loteGadoId").equals(lote.id).count(), 1);
+    // brinco repetido desfaz tudo (nem o bezerro entra)
+    await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Macho", vaca: { brinco: "X1" } });
+    const antes = (await loteGadoPorId(lote.id)).composicao;
+    await assert.rejects(
+      () => registrarParto(lote.id, { data: hoje(), sexoBezerro: "Macho", vaca: { brinco: "x1" } }),
+      /Já existe uma cabeça com o brinco/
+    );
+    assert.deepEqual((await loteGadoPorId(lote.id)).composicao, antes);
+  });
+
   it("sem vaca mojando usa a atrasada; sem nenhuma das duas recusa", async () => {
     const lote = await matrizes([{ sexo: "Fêmea", categoria: "Vaca atrasada", quantidade: 1 }]);
-    await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Macho", vaca: "" });
+    await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Macho", vaca: {} });
     const c = (await loteGadoPorId(lote.id)).composicao;
     assert.equal(qtd(c, "Vaca atrasada"), 0);
     assert.equal(qtd(c, "Vaca parida"), 1);
     assert.equal(qtd(c, "Bezerro"), 1);
     await assert.rejects(
-      () => registrarParto(lote.id, { data: hoje(), sexoBezerro: "Macho", vaca: "" }),
+      () => registrarParto(lote.id, { data: hoje(), sexoBezerro: "Macho", vaca: {} }),
       /não tem vaca mojando ou atrasada/
     );
   });
 
   it("vaca parida cadastrada na composição (sem parto registrado) só recebe o bezerro", async () => {
     const lote = await matrizes([{ sexo: "Fêmea", categoria: "Vaca parida", quantidade: 2 }]);
-    await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Fêmea", vaca: "" });
+    await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Fêmea", vaca: {} });
     const c = (await loteGadoPorId(lote.id)).composicao;
     assert.equal(qtd(c, "Vaca parida"), 2);
     assert.equal(qtd(c, "Bezerra"), 1);
@@ -69,11 +92,11 @@ describe("registrar parto", () => {
   it("recusa data futura e sexo inválido", async () => {
     const lote = await matrizes();
     await assert.rejects(
-      () => registrarParto(lote.id, { data: "2999-01-01", sexoBezerro: "Fêmea", vaca: "" }),
+      () => registrarParto(lote.id, { data: "2999-01-01", sexoBezerro: "Fêmea", vaca: {} }),
       /futuro/
     );
     await assert.rejects(
-      () => registrarParto(lote.id, { data: hoje(), sexoBezerro: "X" as never, vaca: "" }),
+      () => registrarParto(lote.id, { data: hoje(), sexoBezerro: "X" as never, vaca: {} }),
       /macho ou fêmea/
     );
   });
@@ -82,8 +105,8 @@ describe("registrar parto", () => {
 describe("desmamar", () => {
   it("cria lote novo no mesmo pasto e as mães voltam a atrasada", async () => {
     const lote = await matrizes();
-    const a = await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Fêmea", vaca: "" });
-    const b = await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Macho", vaca: "" });
+    const a = await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Fêmea", vaca: {} });
+    const b = await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Macho", vaca: {} });
     const { destino } = await desmamar(lote.id, [a.id, b.id], { tipo: "novo", nome: "Desmamados" });
 
     const origem = (await loteGadoPorId(lote.id)).composicao;
@@ -105,7 +128,7 @@ describe("desmamar", () => {
       nome: "Garrotes", pastoId: null, composicao: [{ sexo: "Macho", categoria: "Bezerro", quantidade: 4 }],
       raca: "", pesoMedioKg: null, origem: "", situacao: "Normal", vacinas: [], observacoes: "",
     });
-    const p = await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Macho", vaca: "" });
+    const p = await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Macho", vaca: {} });
     await assert.rejects(() => desmamar(lote.id, [p.id], { tipo: "lote", loteId: lote.id }), /diferente/);
     await assert.rejects(() => desmamar(lote.id, [p.id], { tipo: "novo", nome: "garrotes" }), /Já existe/);
     await desmamar(lote.id, [p.id], { tipo: "lote", loteId: outro.id });
@@ -116,7 +139,7 @@ describe("desmamar", () => {
 
   it("falha sem deixar nada pela metade", async () => {
     const lote = await matrizes();
-    const p = await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Fêmea", vaca: "" });
+    const p = await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Fêmea", vaca: {} });
     await assert.rejects(() => desmamar(lote.id, [p.id], { tipo: "novo", nome: "  " }), /nome do novo lote/);
     assert.equal((await db.partos.get(p.id))?.desmamado, false);
     assert.equal(qtd((await loteGadoPorId(lote.id)).composicao, "Bezerra"), 1);
@@ -124,7 +147,7 @@ describe("desmamar", () => {
 
   it("respeita as cabeças cadastradas uma a uma", async () => {
     const lote = await matrizes([{ sexo: "Fêmea", categoria: "Vaca atrasada", quantidade: 1 }]);
-    const p = await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Fêmea", vaca: "" });
+    const p = await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Fêmea", vaca: {} });
     for (const cor of ["Branca", "Preta"]) {
       await criarCabeca(lote.id, {
         brinco: "", cor, nome: "", raca: "", sexo: "Fêmea", dataNascimento: "", pesoKg: null, mae: "", pai: "", observacoes: "",
@@ -136,7 +159,7 @@ describe("desmamar", () => {
 
   it("excluir o lote também exclui os partos", async () => {
     const lote = await matrizes();
-    const p = await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Fêmea", vaca: "" });
+    const p = await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Fêmea", vaca: {} });
     await excluirLoteGado(lote.id);
     assert.ok((await db.partos.get(p.id))?.deletedAt);
   });
@@ -144,7 +167,7 @@ describe("desmamar", () => {
 
 describe("aviso de desmama", () => {
   const parto = (loteGadoId: string, data: string, extra: object = {}) => ({
-    id: Math.random().toString(), loteGadoId, data, sexoBezerro: "Fêmea" as const, vaca: "", desmamado: false,
+    id: Math.random().toString(), loteGadoId, data, sexoBezerro: "Fêmea" as const, vaca: "", vacaCabecaId: null, desmamado: false,
     desmamadoEm: null, destinoLoteId: null, createdAt: "", updatedAt: "", deletedAt: null, syncStatus: "pending" as const, ...extra,
   });
 

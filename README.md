@@ -133,3 +133,8 @@ src/
 - **Desmamar**: escolhe os bezerros e manda para um lote novo (no mesmo pasto) ou para um lote existente; as mães voltam a ser vaca atrasada.
 - Prazo de desmama configurável em Perfil (padrão 7 meses); o Início avisa quando o bezerro chega nessa idade.
 - Banco local passou para a versão 5 (tabela `partos`); os dados anteriores são mantidos.
+
+### Ajustes da etapa 4
+
+- Ao registrar o parto, a mãe pode ser escolhida entre as cabeças já cadastradas ou cadastrada na hora (brinco, nome, cor, raça); ela vira cabeça do lote.
+- A lista "Cabeças cadastradas (N)" fica recolhida; toca para abrir.

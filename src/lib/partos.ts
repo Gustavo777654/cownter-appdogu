@@ -1,6 +1,6 @@
 import { totalCabecas } from "./composicao";
 import { db } from "./db";
-import { contarCabecas, garantirNomeLivre, loteGadoPorId } from "./gado";
+import { contarCabecas, criarCabeca, garantirNomeLivre, loteGadoPorId } from "./gado";
 import type { LinhaComposicao, LoteGado, Parto, Sexo } from "./types";
 import { hoje, uuid } from "./utils";
 
@@ -27,10 +27,20 @@ function ajustar(
 const quantidade = (c: LinhaComposicao[], sexo: Sexo, categoria: string) =>
   c.find((l) => l.sexo === sexo && l.categoria === categoria)?.quantidade ?? 0;
 
+/** Dados da mãe. Se a vaca for informada, ela fica cadastrada como cabeça do lote. */
+export interface VacaInput {
+  /** Cabeça já cadastrada neste lote (quando escolhida na lista). */
+  cabecaId?: string | null;
+  brinco?: string;
+  nome?: string;
+  cor?: string;
+  raca?: string;
+}
+
 export interface PartoInput {
   data: string; // YYYY-MM-DD
   sexoBezerro: Sexo;
-  vaca: string;
+  vaca: VacaInput;
 }
 
 /**
@@ -44,10 +54,13 @@ export async function registrarParto(loteGadoId: string, input: PartoInput): Pro
   if (input.sexoBezerro !== "Fêmea" && input.sexoBezerro !== "Macho") {
     throw new Error("Escolha se o bezerro é macho ou fêmea.");
   }
-  const vaca = input.vaca.trim().replace(/\s+/g, " ");
-  if (vaca.length > 60) throw new Error("A identificação da vaca pode ter no máximo 60 letras.");
+  const v = input.vaca;
+  const brinco = (v.brinco ?? "").trim();
+  const nomeVaca = (v.nome ?? "").trim();
+  const cor = (v.cor ?? "").trim();
+  const informouNova = !!(brinco || nomeVaca || cor);
 
-  return db.transaction("rw", db.lotesGado, db.partos, async () => {
+  return db.transaction("rw", db.lotesGado, db.partos, db.cabecas, async () => {
     const lote = await loteGadoPorId(loteGadoId);
     let comp = lote.composicao;
 
@@ -68,12 +81,41 @@ export async function registrarParto(loteGadoId: string, input: PartoInput): Pro
 
     const t = agora();
     await db.lotesGado.update(loteGadoId, { composicao: comp, updatedAt: t, syncStatus: "pending" });
+
+    // A mãe fica cadastrada como cabeça do lote (ou usa a que já estava cadastrada).
+    let vacaCabecaId: string | null = null;
+    let vaca = "";
+    if (v.cabecaId) {
+      const c = await db.cabecas.get(v.cabecaId);
+      if (!c || c.deletedAt || c.loteGadoId !== loteGadoId) {
+        throw new Error("A vaca escolhida não está mais cadastrada neste lote.");
+      }
+      vacaCabecaId = c.id;
+      vaca = c.brinco || c.nome || c.cor;
+    } else if (informouNova) {
+      const c = await criarCabeca(loteGadoId, {
+        brinco,
+        cor,
+        nome: nomeVaca,
+        raca: (v.raca ?? "").trim() || lote.raca,
+        sexo: "Fêmea",
+        dataNascimento: "",
+        pesoKg: null,
+        mae: "",
+        pai: "",
+        observacoes: "",
+      });
+      vacaCabecaId = c.id;
+      vaca = c.brinco || c.nome || c.cor;
+    }
+
     const parto: Parto = {
       id: uuid(),
       loteGadoId,
       data: input.data,
       sexoBezerro: input.sexoBezerro,
       vaca,
+      vacaCabecaId,
       desmamado: false,
       desmamadoEm: null,
       destinoLoteId: null,
