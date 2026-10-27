@@ -21,7 +21,7 @@ export function normalizeBrinco(valor: string): string {
   return valor.trim().replace(/\s+/g, " ").toUpperCase();
 }
 
-async function garantirNomeLivre(nome: string, ignorarId?: string) {
+export async function garantirNomeLivre(nome: string, ignorarId?: string) {
   const chave = chaveNome(nome);
   const existente = await db.lotesGado
     .filter((l) => !l.deletedAt && l.id !== ignorarId && chaveNome(l.nome) === chave)
@@ -91,7 +91,7 @@ function limparLoteGado(input: LoteGadoInput): LoteGadoInput {
   };
 }
 
-async function loteGadoPorId(id: string): Promise<LoteGado> {
+export async function loteGadoPorId(id: string): Promise<LoteGado> {
   const lote = await db.lotesGado.get(id);
   if (!lote || lote.deletedAt) throw new Error("Lote não encontrado.");
   return lote;
@@ -136,8 +136,13 @@ export async function atualizarLoteGado(id: string, input: LoteGadoInput): Promi
 /** Exclusão lógica do lote e das cabeças cadastradas dentro dele. */
 export async function excluirLoteGado(id: string): Promise<void> {
   const t = agora();
-  await db.transaction("rw", db.lotesGado, db.cabecas, async () => {
+  await db.transaction("rw", db.lotesGado, db.cabecas, db.partos, async () => {
     await db.lotesGado.update(id, { deletedAt: t, updatedAt: t, syncStatus: "pending" });
+    await db.partos
+      .where("loteGadoId")
+      .equals(id)
+      .filter((p) => !p.deletedAt)
+      .modify({ deletedAt: t, updatedAt: t, syncStatus: "pending" });
     await db.cabecas
       .where("loteGadoId")
       .equals(id)
@@ -181,7 +186,7 @@ export async function moverLoteGado(
 // Cabeças cadastradas uma a uma (opcional)
 // ---------------------------------------------------------------------------
 
-async function contarCabecas(loteGadoId: string): Promise<number> {
+export async function contarCabecas(loteGadoId: string): Promise<number> {
   return db.cabecas
     .where("loteGadoId")
     .equals(loteGadoId)

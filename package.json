@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "tsx --test src/lib/gado.test.ts src/lib/pastos.test.ts src/lib/rotinas.test.ts src/lib/migracao.test.ts"
+    "test": "tsx --test src/lib/gado.test.ts src/lib/pastos.test.ts src/lib/rotinas.test.ts src/lib/migracao.test.ts src/lib/partos.test.ts"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.3.0",

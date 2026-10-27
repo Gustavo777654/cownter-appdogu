@@ -76,6 +76,21 @@ export type LoteGadoInput = Omit<
   "id" | "createdAt" | "updatedAt" | "deletedAt" | "syncStatus"
 >;
 
+/**
+ * Registro de um parto dentro de um lote. O bezerro fica no lote da mãe
+ * ("mamando") até o produtor desmamar; aí ele sai para outro lote.
+ */
+export interface Parto extends Sincronizavel {
+  id: string;
+  loteGadoId: string; // lote onde a vaca estava ao parir
+  data: string; // YYYY-MM-DD: data do nascimento
+  sexoBezerro: Sexo;
+  vaca: string; // brinco, nome ou cor da vaca ("" = não informado)
+  desmamado: boolean;
+  desmamadoEm: string | null; // YYYY-MM-DD
+  destinoLoteId: string | null; // lote para onde o bezerro foi ao desmamar
+}
+
 /** Uma cabeça cadastrada individualmente dentro de um lote (opcional). */
 export interface Cabeca extends Sincronizavel {
   id: string;
