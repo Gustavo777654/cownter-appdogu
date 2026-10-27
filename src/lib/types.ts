@@ -86,6 +86,7 @@ export interface Parto extends Sincronizavel {
   data: string; // YYYY-MM-DD: data do nascimento
   sexoBezerro: Sexo;
   vaca: string; // brinco, nome ou cor da vaca ("" = não informado)
+  vacaCabecaId: string | null; // cabeça cadastrada da vaca (quando informada)
   desmamado: boolean;
   desmamadoEm: string | null; // YYYY-MM-DD
   destinoLoteId: string | null; // lote para onde o bezerro foi ao desmamar
