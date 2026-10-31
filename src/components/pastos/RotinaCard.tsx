@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { CheckCircle, Drop, GearSix, Pill } from "@phosphor-icons/react";
-import { marcarRotinaFeita } from "@/lib/pastos";
 import {
   diasParaVencer,
   proximaData,
@@ -14,10 +13,11 @@ import type { Pasto } from "@/lib/types";
 import { formatDataBR, formatDesde, hoje } from "@/lib/utils";
 import { PrazoBadge } from "@/components/ui/PrazoBadge";
 import { RotinaSheet } from "./RotinaSheet";
+import { UsoRotinaSheet } from "./UsoRotinaSheet";
 
 export function RotinaCard({ pasto, tipo }: { pasto: Pasto; tipo: TipoRotina }) {
   const [editando, setEditando] = useState(false);
-  const [salvando, setSalvando] = useState(false);
+  const [marcando, setMarcando] = useState(false);
 
   const regra = ROTINAS[tipo];
   const { ultima, intervalo } = rotinaDoPasto(pasto, tipo);
@@ -26,15 +26,6 @@ export function RotinaCard({ pasto, tipo }: { pasto: Pasto; tipo: TipoRotina }) 
   const Icone = tipo === "remedio" ? Pill : Drop;
   const configurada = !!ultima && intervalo !== null;
   const feitoHoje = ultima === hoje();
-
-  async function feito() {
-    setSalvando(true);
-    try {
-      await marcarRotinaFeita(pasto.id, tipo);
-    } finally {
-      setSalvando(false);
-    }
-  }
 
   return (
     <div className="card">
@@ -91,8 +82,8 @@ export function RotinaCard({ pasto, tipo }: { pasto: Pasto; tipo: TipoRotina }) 
         {configurada && (
           <button
             type="button"
-            onClick={feito}
-            disabled={salvando || feitoHoje}
+            onClick={() => setMarcando(true)}
+            disabled={feitoHoje}
             className="btn-primary min-h-11 flex-1 px-3 text-sm"
           >
             <CheckCircle size={18} weight="bold" />
@@ -101,6 +92,7 @@ export function RotinaCard({ pasto, tipo }: { pasto: Pasto; tipo: TipoRotina }) 
         )}
       </div>
 
+      <UsoRotinaSheet open={marcando} pasto={pasto} tipo={tipo} onClose={() => setMarcando(false)} />
       <RotinaSheet open={editando} pasto={pasto} tipo={tipo} onClose={() => setEditando(false)} />
     </div>
   );

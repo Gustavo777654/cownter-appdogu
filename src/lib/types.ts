@@ -165,6 +165,45 @@ export interface Nota extends Sincronizavel {
   data: string; // YYYY-MM-DD
 }
 
+// ---------------------------------------------------------------------------
+// Recursos: estoque de suplementos (sal) e remédios
+// ---------------------------------------------------------------------------
+
+export type TipoRecurso = "Suplemento" | "Remédio";
+export const TIPOS_RECURSO: readonly TipoRecurso[] = ["Suplemento", "Remédio"];
+
+/** Item do estoque. Suplemento é contado em sacos (com os kg de cada saco); remédio em frascos. */
+export interface Recurso extends Sincronizavel {
+  id: string;
+  tipo: TipoRecurso;
+  nome: string;
+  kgPorSaco: number | null; // só suplemento
+  precoUnitario: number | null; // R$ por saco (suplemento) ou por frasco (remédio) na última compra
+  estoque: number; // sacos ou frascos, aceita decimal
+  estoqueMinimo: number | null; // avisar quando chegar nisso (sacos/frascos)
+}
+
+/** Uma compra (ou reposição) de estoque; depois vira despesa em Finanças. */
+export interface CompraRecurso extends Sincronizavel {
+  id: string;
+  recursoId: string;
+  data: string; // YYYY-MM-DD
+  quantidade: number;
+  precoUnitario: number | null;
+  total: number | null; // quantidade x preço
+}
+
+/** Quanto do estoque foi usado ao marcar o sal ou o remédio de um pasto como feito. */
+export interface UsoRecurso extends Sincronizavel {
+  id: string;
+  recursoId: string;
+  pastoId: string;
+  rotina: "sal" | "remedio";
+  data: string; // YYYY-MM-DD
+  quantidade: number;
+  custo: number | null; // quantidade x preço no momento do uso
+}
+
 export interface User {
   email: string;
   name: string;

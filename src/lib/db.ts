@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from "dexie";
-import type { Cabeca, LoteGado, Nota, Parto, Pasto, Tarefa } from "./types";
+import type { Cabeca, CompraRecurso, LoteGado, Nota, Parto, Pasto, Recurso, Tarefa, UsoRecurso } from "./types";
 
 /**
  * Banco local do Cownter (IndexedDB via Dexie).
@@ -15,6 +15,9 @@ class CownterDB extends Dexie {
   tarefas!: EntityTable<Tarefa, "id">;
   notas!: EntityTable<Nota, "id">;
   partos!: EntityTable<Parto, "id">;
+  recursos!: EntityTable<Recurso, "id">;
+  comprasRecurso!: EntityTable<CompraRecurso, "id">;
+  usosRecurso!: EntityTable<UsoRecurso, "id">;
 
   constructor() {
     super("cownter");
@@ -78,6 +81,13 @@ class CownterDB extends Dexie {
     // Versão 5: partos e desmama dentro dos lotes de gado.
     this.version(5).stores({
       partos: "id, loteGadoId, data, syncStatus, updatedAt, deletedAt",
+    });
+
+    // Versão 6: estoque de suplementos e remédios (Recursos).
+    this.version(6).stores({
+      recursos: "id, tipo, nome, syncStatus, updatedAt, deletedAt",
+      comprasRecurso: "id, recursoId, data, syncStatus, updatedAt, deletedAt",
+      usosRecurso: "id, recursoId, pastoId, data, syncStatus, updatedAt, deletedAt",
     });
   }
 }
