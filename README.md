@@ -148,3 +148,4 @@ src/
 
 - Excluir um parto tira o bezerro do lote e, se o parto tinha transformado uma vaca mojando em parida, ela volta a mojando. A vaca cadastrada como cabeça continua cadastrada.
 - Lote com vaca parida sem parto registrado mostra o aviso "Registrar parto da vaca parida".
+- Tocar em "bezerros desmamados" no lote mostra cada bezerro, a data da desmama e o lote para onde foi (com link).
