@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Baby, Trash } from "@phosphor-icons/react";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Erro } from "@/components/ui/Erro";
@@ -20,6 +21,7 @@ export function PartosSection({ lote }: { lote: LoteGado }) {
   const config = useConfiguracao();
   const [registrando, setRegistrando] = useState(false);
   const [desmamando, setDesmamando] = useState(false);
+  const [verDesmamados, setVerDesmamados] = useState(false);
   const [erro, setErro] = useState("");
 
   const mamando = useMemo(() => (partos ?? []).filter((p) => !p.desmamado), [partos]);
@@ -47,10 +49,16 @@ export function PartosSection({ lote }: { lote: LoteGado }) {
           <p className="text-2xl font-bold text-dark">{mamando.length}</p>
           <p className="text-sm text-dark/60">{mamando.length === 1 ? "bezerro mamando" : "bezerros mamando"}</p>
         </div>
-        <div className="card p-3">
+        <button
+          type="button"
+          onClick={() => setVerDesmamados(true)}
+          disabled={desmamados === 0}
+          className="card p-3 text-left disabled:opacity-100"
+        >
           <p className="text-2xl font-bold text-dark">{desmamados}</p>
           <p className="text-sm text-dark/60">{desmamados === 1 ? "bezerro desmamado" : "bezerros desmamados"}</p>
-        </div>
+          {desmamados > 0 && <p className="mt-1 text-xs font-semibold text-brand-700">Toque para ver para onde foram</p>}
+        </button>
       </div>
 
       <div className="mb-3 flex gap-2">
@@ -129,6 +137,11 @@ export function PartosSection({ lote }: { lote: LoteGado }) {
         A desmama é avisada com {meses} meses de idade. Você muda isso em Perfil.
       </p>
 
+      <DesmamadosSheet
+        open={verDesmamados}
+        partos={(partos ?? []).filter((p) => p.desmamado)}
+        onClose={() => setVerDesmamados(false)}
+      />
       <RegistrarPartoSheet open={registrando} lote={lote} semParto={semParto} onClose={() => setRegistrando(false)} />
       <DesmamarSheet open={desmamando} lote={lote} abertos={mamando} onClose={() => setDesmamando(false)} />
     </section>
@@ -440,6 +453,43 @@ function DesmamarSheet({
 
         <p className="text-sm text-dark/60">As mães dos bezerros desmamados voltam a ser vaca atrasada.</p>
       </form>
+    </BottomSheet>
+  );
+}
+
+function DesmamadosSheet({ open, partos, onClose }: { open: boolean; partos: Parto[]; onClose: () => void }) {
+  const lotes = useLotesGado();
+  const nomes = new Map((lotes ?? []).map((l) => [l.id, l.nome]));
+  const ordenados = [...partos].sort((a, b) => (b.desmamadoEm ?? "").localeCompare(a.desmamadoEm ?? ""));
+
+  return (
+    <BottomSheet open={open} onClose={onClose} title="Bezerros desmamados">
+      <ul className="space-y-2 pt-1">
+        {ordenados.map((p) => {
+          const destino = p.destinoLoteId ? nomes.get(p.destinoLoteId) : undefined;
+          return (
+            <li key={p.id} className="card p-3">
+              <p className="font-bold text-dark">
+                {p.sexoBezerro === "Fêmea" ? "Bezerra" : "Bezerro"}
+                {p.vaca ? ` · mãe ${p.vaca}` : ""}
+              </p>
+              <p className="text-sm text-dark/60">
+                Nasceu em {formatDataBR(p.data)} · desmamado em {formatDataBR(p.desmamadoEm ?? "")}
+              </p>
+              <p className="mt-1 text-sm">
+                <span className="text-dark/60">Foi para: </span>
+                {destino && p.destinoLoteId ? (
+                  <Link prefetch={false} href={`/lote?id=${p.destinoLoteId}`} className="font-bold text-brand-800">
+                    {destino}
+                  </Link>
+                ) : (
+                  <span className="font-semibold text-dark/70">lote que foi excluído</span>
+                )}
+              </p>
+            </li>
+          );
+        })}
+      </ul>
     </BottomSheet>
   );
 }
