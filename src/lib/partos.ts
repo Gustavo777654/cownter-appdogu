@@ -118,6 +118,7 @@ export async function registrarParto(loteGadoId: string, input: PartoInput): Pro
       sexoBezerro: input.sexoBezerro,
       vaca,
       vacaCabecaId,
+      converteuMojando: mojando,
       desmamado: false,
       desmamadoEm: null,
       destinoLoteId: null,
@@ -228,8 +229,36 @@ export async function desmamar(
   });
 }
 
-/** Exclui um registro de parto feito por engano (não mexe na composição do lote). */
+/**
+ * Exclui um registro de parto feito por engano e desfaz o efeito no lote: o bezerro sai da
+ * composição e, se o parto tinha transformado uma vaca mojando em parida, ela volta a mojando.
+ * (A vaca cadastrada como cabeça continua cadastrada.) Bezerro já desmamado não pode ser desfeito.
+ */
 export async function excluirParto(id: string): Promise<void> {
-  const t = agora();
-  await db.partos.update(id, { deletedAt: t, updatedAt: t, syncStatus: "pending" });
+  await db.transaction("rw", db.lotesGado, db.partos, db.cabecas, async () => {
+    const parto = await db.partos.get(id);
+    if (!parto || parto.deletedAt) return;
+    if (parto.desmamado) throw new Error("Este bezerro já foi desmamado; o registro não pode ser desfeito.");
+    const lote = await loteGadoPorId(parto.loteGadoId);
+
+    let comp = ajustar(lote.composicao, parto.sexoBezerro, bezerroDe(parto.sexoBezerro), -1);
+    if (parto.converteuMojando && quantidade(comp, "Fêmea", VACA_PARIDA) > 0) {
+      comp = ajustar(comp, "Fêmea", VACA_PARIDA, -1);
+      comp = ajustar(comp, "Fêmea", VACA_MOJANDO, 1);
+    }
+    if (totalCabecas(comp) < (await contarCabecas(lote.id))) {
+      throw new Error("Há cabeças cadastradas demais para remover este bezerro do lote. Exclua uma cabeça cadastrada antes.");
+    }
+    const t = agora();
+    await db.lotesGado.update(lote.id, { composicao: comp, updatedAt: t, syncStatus: "pending" });
+    await db.partos.update(id, { deletedAt: t, updatedAt: t, syncStatus: "pending" });
+  });
+}
+
+/** Vacas paridas do lote que ainda não têm parto registrado (já pariram, falta lançar o bezerro). */
+export function paridasSemParto(
+  composicao: LinhaComposicao[],
+  partosAbertos: number
+): number {
+  return Math.max(0, quantidade(composicao, "Fêmea", VACA_PARIDA) - partosAbertos);
 }

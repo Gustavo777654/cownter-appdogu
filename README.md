@@ -143,3 +143,8 @@ src/
 
 - No lote: **Mover algumas cabeças**. Escolhe quantas de cada tipo saem (ex.: 3 novilhas), marca as cadastradas que vão junto e escolhe um lote existente ou um lote novo (no mesmo pasto).
 - Bezerro mamando e vaca parida com bezerro só saem pela desmama. Para mover todas as cabeças, use "Mover" (lote inteiro para outro pasto).
+
+### Excluir parto desfaz o efeito
+
+- Excluir um parto tira o bezerro do lote e, se o parto tinha transformado uma vaca mojando em parida, ela volta a mojando. A vaca cadastrada como cabeça continua cadastrada.
+- Lote com vaca parida sem parto registrado mostra o aviso "Registrar parto da vaca parida".
