@@ -12,13 +12,15 @@ import {
   Pill,
   Plant,
   Baby,
+  Package,
   Plus,
   Tag,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { useAuth } from "@/contexts/AuthContext";
 import { descreverCabecas, totalDeLotes } from "@/lib/composicao";
-import { useConfiguracao, useLotesGado, usePartosAbertos, usePastos, useTarefasAbertas } from "@/lib/hooks";
+import { useConfiguracao, useLotesGado, usePartosAbertos, usePastos, useRecursos, useTarefasAbertas, useUsosRecurso } from "@/lib/hooks";
+import { coletarAlertasEstoque } from "@/lib/estoque";
 import { coletarAlertasDesmama } from "@/lib/desmama";
 import { JANELA_ALERTA_DIAS } from "@/lib/rotinas";
 import { coletarAlertas, type Alerta } from "@/lib/rotinas";
@@ -62,6 +64,8 @@ export default function InicioPage() {
   const tarefas = useTarefasAbertas();
   const partos = usePartosAbertos();
   const config = useConfiguracao();
+  const recursos = useRecursos();
+  const usosRecurso = useUsosRecurso();
 
   const cabecas = lotes ? totalDeLotes(lotes) : undefined;
   const pastosEmUso = pastos?.filter((p) => p.situacao === "Em uso").length;
@@ -79,6 +83,13 @@ export default function InicioPage() {
         ? coletarAlertasDesmama(partos, lotes, hoje(), config.desmamaMeses, JANELA_ALERTA_DIAS)
         : [],
     [partos, lotes, config]
+  );
+  const estoque = useMemo(
+    () =>
+      recursos && usosRecurso && config
+        ? coletarAlertasEstoque(recursos, usosRecurso, hoje(), config.estoqueDiasAviso)
+        : [],
+    [recursos, usosRecurso, config]
   );
   const atrasados = (alertas?.filter((a) => a.dias < 0).length ?? 0) + desmamas.filter((d) => d.dias < 0).length;
 
@@ -99,7 +110,7 @@ export default function InicioPage() {
             )}
           </div>
 
-          {alertas && alertas.length === 0 && desmamas.length === 0 ? (
+          {alertas && alertas.length === 0 && desmamas.length === 0 && estoque.length === 0 ? (
             <div className="card flex items-start gap-3 text-sm text-dark/60">
               <BellRinging size={22} className="mt-0.5 shrink-0 text-brand-700" />
               <p>
@@ -110,6 +121,24 @@ export default function InicioPage() {
             </div>
           ) : (
             <ul className="space-y-2">
+              {estoque.map((e) => (
+                <li key={e.chave}>
+                  <Link prefetch={false} href="/recursos" className="card flex items-center gap-3 p-3">
+                    <div
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                        e.grave ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      <Package size={22} weight="duotone" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-bold text-dark">{e.titulo}</p>
+                      <p className="truncate text-sm text-dark/60">{e.detalhe}</p>
+                    </div>
+                    <CaretRight size={18} className="shrink-0 text-dark/30" />
+                  </Link>
+                </li>
+              ))}
               {desmamas.map((d) => (
                 <li key={d.chave}>
                   <Link prefetch={false} href={`/lote?id=${d.loteId}`} className="card flex items-center gap-3 p-3">

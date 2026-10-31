@@ -149,3 +149,11 @@ src/
 - Excluir um parto tira o bezerro do lote e, se o parto tinha transformado uma vaca mojando em parida, ela volta a mojando. A vaca cadastrada como cabeça continua cadastrada.
 - Lote com vaca parida sem parto registrado mostra o aviso "Registrar parto da vaca parida".
 - Tocar em "bezerros desmamados" no lote mostra cada bezerro, a data da desmama e o lote para onde foi (com link).
+
+## Etapa 5: Recursos (estoque)
+
+- Aba **Recursos**: Suplementos (sacos + kg por saco + preço por saco) e Remédios (frascos + preço por frasco), com estoque decimal, mínimo para avisar e histórico de compras e usos.
+- **Repor estoque**: soma ao estoque e guarda data e valor da compra (base das despesas em Finanças).
+- No pasto, ao marcar **sal** ou **remédio** como feito: escolhe o item do estoque e a quantidade usada (decimal, vários itens), ou cadastra o item na hora. Dá para marcar sem baixar do estoque.
+- Alertas no Início: estoque zerado, abaixo do mínimo, ou acabando pelo consumo médio (prazo configurável em Perfil, padrão 15 dias).
+- Banco local na versão 6 (tabelas recursos, comprasRecurso, usosRecurso). 82 testes.

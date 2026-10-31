@@ -7,7 +7,7 @@ import Dexie from "dexie";
 
 const SYNC = { createdAt: "2026-10-01T10:00:00.000Z", updatedAt: "2026-10-01T10:00:00.000Z", deletedAt: null, syncStatus: "pending" };
 
-describe("migração do banco da versão 2 para a 5", () => {
+describe("migração do banco da versão 2 para a 6", () => {
   it("mantém pastos, tarefas e observações e descarta os animais soltos", async () => {
     // Banco no formato da versão 2: lotes (eram os pastos), animais, tarefas e observações.
     const antigo = new Dexie("cownter");
@@ -61,7 +61,7 @@ describe("migração do banco da versão 2 para a 5", () => {
     });
     antigo.close();
 
-    // Abre pelo código do app (versão 5) e confere.
+    // Abre pelo código do app (versão 6) e confere.
     const { db } = await import("./db");
 
     const pasto = await db.pastos.get("pasto-1");
@@ -76,7 +76,7 @@ describe("migração do banco da versão 2 para a 5", () => {
     assert.equal(nota?.pastoId, "pasto-1");
 
     // As tabelas antigas saíram e as novas começam vazias.
-    assert.deepEqual(db.tables.map((t) => t.name).sort(), ["cabecas", "lotesGado", "notas", "partos", "pastos", "tarefas"]);
+    assert.deepEqual(db.tables.map((t) => t.name).sort(), ["cabecas", "comprasRecurso", "lotesGado", "notas", "partos", "pastos", "recursos", "tarefas", "usosRecurso"]);
     assert.equal(await db.lotesGado.count(), 0);
     assert.equal(await db.cabecas.count(), 0);
 

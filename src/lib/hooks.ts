@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { lerConfiguracao, type Configuracao } from "./config";
 import { db } from "./db";
-import type { Cabeca, LoteGado, Nota, Parto, Pasto, Tarefa } from "./types";
+import type { Cabeca, CompraRecurso, LoteGado, Nota, Parto, Pasto, Recurso, Tarefa, TipoRecurso, UsoRecurso } from "./types";
 
 const ordenarTexto = (a: string, b: string) =>
   a.localeCompare(b, "pt-BR", { numeric: true });
@@ -132,6 +132,9 @@ export function usePendentesSync(): number | undefined {
       db.tarefas.where("syncStatus").equals("pending").count(),
       db.notas.where("syncStatus").equals("pending").count(),
       db.partos.where("syncStatus").equals("pending").count(),
+      db.recursos.where("syncStatus").equals("pending").count(),
+      db.comprasRecurso.where("syncStatus").equals("pending").count(),
+      db.usosRecurso.where("syncStatus").equals("pending").count(),
     ]);
     return contagens.reduce((soma, n) => soma + n, 0);
   }, []);
@@ -161,4 +164,28 @@ export function useConfiguracao(): Configuracao | undefined {
   const [cfg, setCfg] = useState<Configuracao | undefined>(undefined);
   useEffect(() => setCfg(lerConfiguracao()), []);
   return cfg;
+}
+
+/** Itens do estoque (suplementos e remédios), em ordem alfabética. */
+export function useRecursos(tipo?: TipoRecurso): Recurso[] | undefined {
+  return useLiveQuery(async () => {
+    const todos = await db.recursos.filter((r) => !r.deletedAt && (!tipo || r.tipo === tipo)).toArray();
+    return todos.sort((a, b) => ordenarTexto(a.nome, b.nome));
+  }, [tipo]);
+}
+
+/** Todos os usos de estoque (para calcular o consumo médio). */
+export function useUsosRecurso(): UsoRecurso[] | undefined {
+  return useLiveQuery(() => db.usosRecurso.filter((u) => !u.deletedAt).toArray(), []);
+}
+
+/** Histórico de um item: compras e usos, do mais recente para o mais antigo. */
+export function useHistoricoRecurso(id: string): { compras: CompraRecurso[]; usos: UsoRecurso[] } | undefined {
+  return useLiveQuery(async () => {
+    const compras = await db.comprasRecurso.where("recursoId").equals(id).filter((c) => !c.deletedAt).toArray();
+    const usos = await db.usosRecurso.where("recursoId").equals(id).filter((u) => !u.deletedAt).toArray();
+    compras.sort((a, b) => b.data.localeCompare(a.data) || b.createdAt.localeCompare(a.createdAt));
+    usos.sort((a, b) => b.data.localeCompare(a.data) || b.createdAt.localeCompare(a.createdAt));
+    return { compras, usos };
+  }, [id]);
 }

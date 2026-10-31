@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { criarCabeca, criarLoteGado } from "./gado";
+import { criarRecurso } from "./recursos";
 import { criarNota, criarPasto, criarTarefa } from "./pastos";
 import { addDias, addMeses } from "./rotinas";
 import type { LoteGadoInput, Pasto } from "./types";
@@ -155,6 +156,13 @@ export async function carregarDadosExemplo(): Promise<number> {
     } catch {
       // lote com esse nome já existe: segue para o próximo
     }
+  }
+  // Estoque de exemplo para testar Recursos.
+  try {
+    await criarRecurso({ tipo: "Suplemento", nome: "Sal mineral", kgPorSaco: 25, precoUnitario: 95, estoqueMinimo: 3 }, 8);
+    await criarRecurso({ tipo: "Remédio", nome: "Ivermectina", kgPorSaco: null, precoUnitario: 48.5, estoqueMinimo: 1 }, 4);
+  } catch {
+    // já cadastrados
   }
   return criados;
 }
