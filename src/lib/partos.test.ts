@@ -6,7 +6,7 @@ import { totalCabecas } from "./composicao";
 import { coletarAlertasDesmama, dataDesmama } from "./desmama";
 import { db } from "./db";
 import { criarCabeca, criarLoteGado, excluirLoteGado, loteGadoPorId } from "./gado";
-import { desmamar, registrarParto } from "./partos";
+import { desmamar, excluirParto, paridasSemParto, registrarParto } from "./partos";
 import { addMeses } from "./rotinas";
 import type { LinhaComposicao } from "./types";
 import { hoje } from "./utils";
@@ -97,6 +97,43 @@ describe("registrar parto", () => {
       () => registrarParto(lote.id, { data: hoje(), sexoBezerro: "X" as never, vaca: {} }),
       /macho ou fêmea/
     );
+  });
+});
+
+describe("excluir parto", () => {
+  it("desfaz o efeito: bezerro sai e a vaca volta a mojando; repetir não acumula", async () => {
+    const lote = await matrizes([
+      { sexo: "Fêmea", categoria: "Vaca atrasada", quantidade: 1 },
+      { sexo: "Fêmea", categoria: "Vaca mojando", quantidade: 1 },
+      { sexo: "Fêmea", categoria: "Vaca parida", quantidade: 1 },
+    ]);
+    for (let i = 0; i < 3; i++) {
+      const p = await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Fêmea", vaca: {} });
+      await excluirParto(p.id);
+      const c = (await loteGadoPorId(lote.id)).composicao;
+      assert.equal(qtd(c, "Vaca atrasada"), 1);
+      assert.equal(qtd(c, "Vaca mojando"), 1);
+      assert.equal(qtd(c, "Vaca parida"), 1);
+      assert.equal(qtd(c, "Bezerra"), 0);
+    }
+  });
+
+  it("parto de vaca que já estava parida só tira o bezerro ao excluir", async () => {
+    const lote = await matrizes([{ sexo: "Fêmea", categoria: "Vaca parida", quantidade: 2 }]);
+    assert.equal(paridasSemParto((await loteGadoPorId(lote.id)).composicao, 0), 2);
+    const p = await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Macho", vaca: {} });
+    assert.equal(paridasSemParto((await loteGadoPorId(lote.id)).composicao, 1), 1);
+    await excluirParto(p.id);
+    const c = (await loteGadoPorId(lote.id)).composicao;
+    assert.equal(qtd(c, "Vaca parida"), 2);
+    assert.equal(qtd(c, "Bezerro"), 0);
+  });
+
+  it("não desfaz parto já desmamado", async () => {
+    const lote = await matrizes();
+    const p = await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Fêmea", vaca: {} });
+    await desmamar(lote.id, [p.id], { tipo: "novo", nome: "Novo" });
+    await assert.rejects(() => excluirParto(p.id), /já foi desmamado/);
   });
 });
 

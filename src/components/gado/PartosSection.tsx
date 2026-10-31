@@ -6,7 +6,7 @@ import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Erro } from "@/components/ui/Erro";
 import { Segmented } from "@/components/ui/Segmented";
 import { dataDesmama } from "@/lib/desmama";
-import { desmamar, excluirParto, registrarParto, type DestinoDesmama } from "@/lib/partos";
+import { desmamar, excluirParto, paridasSemParto, registrarParto, type DestinoDesmama } from "@/lib/partos";
 import { diasEntre, descreverPrazo } from "@/lib/rotinas";
 import { useCabecas, useConfiguracao, useLotesGado, usePartosDoLote } from "@/lib/hooks";
 import { SEXOS, type LoteGado, type Parto, type Sexo } from "@/lib/types";
@@ -24,6 +24,7 @@ export function PartosSection({ lote }: { lote: LoteGado }) {
 
   const mamando = useMemo(() => (partos ?? []).filter((p) => !p.desmamado), [partos]);
   const desmamados = (partos ?? []).length - mamando.length;
+  const semParto = paridasSemParto(lote.composicao, mamando.length);
 
   if (!temVaca(lote) && (partos ?? []).length === 0) return null;
   const meses = config?.desmamaMeses ?? 7;
@@ -66,6 +67,19 @@ export function PartosSection({ lote }: { lote: LoteGado }) {
           Desmamar
         </button>
       </div>
+
+      {semParto > 0 && (
+        <div className="mb-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+          <p>
+            {semParto === 1 ? "1 vaca parida está" : `${semParto} vacas paridas estão`} sem o parto registrado. Registre
+            para anotar o bezerro e acompanhar a desmama.
+          </p>
+          <button type="button" onClick={() => setRegistrando(true)} className="btn-secondary mt-2 min-h-10 px-3 text-sm">
+            <Baby size={16} />
+            Registrar parto da vaca parida
+          </button>
+        </div>
+      )}
 
       <Erro texto={erro} />
 
@@ -115,7 +129,7 @@ export function PartosSection({ lote }: { lote: LoteGado }) {
         A desmama é avisada com {meses} meses de idade. Você muda isso em Perfil.
       </p>
 
-      <RegistrarPartoSheet open={registrando} lote={lote} onClose={() => setRegistrando(false)} />
+      <RegistrarPartoSheet open={registrando} lote={lote} semParto={semParto} onClose={() => setRegistrando(false)} />
       <DesmamarSheet open={desmamando} lote={lote} abertos={mamando} onClose={() => setDesmamando(false)} />
     </section>
   );
@@ -124,7 +138,18 @@ export function PartosSection({ lote }: { lote: LoteGado }) {
 const SEM_VACA = "";
 const NOVA_VACA = "__nova__";
 
-function RegistrarPartoSheet({ open, lote, onClose }: { open: boolean; lote: LoteGado; onClose: () => void }) {
+function RegistrarPartoSheet({
+  open,
+  lote,
+  semParto,
+  onClose,
+}: {
+  open: boolean;
+  lote: LoteGado;
+  semParto: number;
+  onClose: () => void;
+}) {
+  const temMojando = lote.composicao.some((l) => l.categoria === "Vaca mojando" && l.quantidade > 0);
   const cabecas = useCabecas(open ? lote.id : null);
   const [data, setData] = useState(hoje());
   const [sexo, setSexo] = useState<Sexo>("Fêmea");
@@ -256,7 +281,11 @@ function RegistrarPartoSheet({ open, lote, onClose }: { open: boolean; lote: Lot
         )}
 
         <p className="text-sm text-dark/60">
-          O bezerro entra neste lote e uma vaca mojando (a que está quase parindo) passa a ser vaca parida.
+          {temMojando
+            ? "O bezerro entra neste lote e uma vaca mojando (a que está quase parindo) passa a ser vaca parida."
+            : semParto > 0
+              ? "O bezerro entra neste lote como filho de uma vaca que já estava parida."
+              : "Este lote não tem vaca mojando nem vaca parida sem parto registrado."}
         </p>
       </form>
     </BottomSheet>
