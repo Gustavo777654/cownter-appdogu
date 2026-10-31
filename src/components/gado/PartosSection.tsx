@@ -256,7 +256,7 @@ function RegistrarPartoSheet({ open, lote, onClose }: { open: boolean; lote: Lot
         )}
 
         <p className="text-sm text-dark/60">
-          O bezerro entra neste lote e uma vaca mojando (ou atrasada) passa a ser vaca parida.
+          O bezerro entra neste lote e uma vaca mojando (a que está quase parindo) passa a ser vaca parida.
         </p>
       </form>
     </BottomSheet>

@@ -128,7 +128,7 @@ src/
 
 ## Etapa 4: parto e desmama
 
-- No lote com vacas: **Registrar parto** (sexo do bezerro, data, vaca opcional). O bezerro entra no lote da mãe e uma vaca mojando (ou atrasada) vira vaca parida.
+- No lote com vacas: **Registrar parto** (sexo do bezerro, data, vaca opcional). O bezerro entra no lote da mãe e uma vaca mojando (a que está quase parindo) vira vaca parida.
 - O lote mostra bezerros mamando e desmamados.
 - **Desmamar**: escolhe os bezerros e manda para um lote novo (no mesmo pasto) ou para um lote existente; as mães voltam a ser vaca atrasada.
 - Prazo de desmama configurável em Perfil (padrão 7 meses); o Início avisa quando o bezerro chega nessa idade.
@@ -138,3 +138,8 @@ src/
 
 - Ao registrar o parto, a mãe pode ser escolhida entre as cabeças já cadastradas ou cadastrada na hora (brinco, nome, cor, raça); ela vira cabeça do lote.
 - A lista "Cabeças cadastradas (N)" fica recolhida; toca para abrir.
+
+### Mover algumas cabeças entre lotes
+
+- No lote: **Mover algumas cabeças**. Escolhe quantas de cada tipo saem (ex.: 3 novilhas), marca as cadastradas que vão junto e escolhe um lote existente ou um lote novo (no mesmo pasto).
+- Bezerro mamando e vaca parida com bezerro só saem pela desmama. Para mover todas as cabeças, use "Mover" (lote inteiro para outro pasto).

@@ -44,9 +44,9 @@ export interface PartoInput {
 }
 
 /**
- * Registra um parto: o bezerro entra no lote da mãe e uma vaca (mojando; se não houver,
- * atrasada) passa a ser "parida". Se o lote já tem vaca parida sem parto registrado
- * (cadastrada assim na composição), só entra o bezerro.
+ * Registra um parto: o bezerro entra no lote da mãe e uma vaca mojando (a que está quase
+ * parindo) passa a ser "parida". Vaca atrasada ainda não vai parir, então não serve. Se o lote
+ * já tem vaca parida sem parto registrado (cadastrada assim, ou seja, já pariu), só entra o bezerro.
  */
 export async function registrarParto(loteGadoId: string, input: PartoInput): Promise<Parto> {
   if (!input.data) throw new Error("Informe a data do nascimento.");
@@ -70,12 +70,14 @@ export async function registrarParto(loteGadoId: string, input: PartoInput): Pro
       .filter((p) => !p.deletedAt && !p.desmamado)
       .count();
 
-    const origem = [VACA_MOJANDO, VACA_ATRASADA].find((c) => quantidade(comp, "Fêmea", c) > 0);
-    if (origem) {
-      comp = ajustar(comp, "Fêmea", origem, -1);
+    const mojando = quantidade(comp, "Fêmea", VACA_MOJANDO) > 0;
+    if (mojando) {
+      comp = ajustar(comp, "Fêmea", VACA_MOJANDO, -1);
       comp = ajustar(comp, "Fêmea", VACA_PARIDA, 1);
     } else if (quantidade(comp, "Fêmea", VACA_PARIDA) <= abertos) {
-      throw new Error("Este lote não tem vaca mojando ou atrasada para registrar o parto.");
+      throw new Error(
+        "Este lote não tem vaca mojando (a que está quase parindo). Edite o lote e mude a vaca que vai parir para \"Vaca mojando\"."
+      );
     }
     comp = ajustar(comp, input.sexoBezerro, bezerroDe(input.sexoBezerro), 1);
 

@@ -17,7 +17,7 @@ const matrizes = (composicao?: LinhaComposicao[]) =>
     pastoId: null,
     composicao: composicao ?? [
       { sexo: "Fêmea", categoria: "Vaca atrasada", quantidade: 5 },
-      { sexo: "Fêmea", categoria: "Vaca mojando", quantidade: 2 },
+      { sexo: "Fêmea", categoria: "Vaca mojando", quantidade: 4 },
       { sexo: "Macho", categoria: "Touro", quantidade: 1 },
     ],
     raca: "Nelore",
@@ -39,10 +39,10 @@ describe("registrar parto", () => {
     const lote = await matrizes();
     await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Fêmea", vaca: { brinco: "BR-001" } });
     const c = (await loteGadoPorId(lote.id)).composicao;
-    assert.equal(qtd(c, "Vaca mojando"), 1);
+    assert.equal(qtd(c, "Vaca mojando"), 3);
     assert.equal(qtd(c, "Vaca parida"), 1);
     assert.equal(qtd(c, "Bezerra"), 1);
-    assert.equal(totalCabecas(c), 9);
+    assert.equal(totalCabecas(c), 11);
   });
 
   it("vaca informada fica cadastrada como cabeça do lote; vaca já cadastrada é reaproveitada", async () => {
@@ -68,17 +68,15 @@ describe("registrar parto", () => {
     assert.deepEqual((await loteGadoPorId(lote.id)).composicao, antes);
   });
 
-  it("sem vaca mojando usa a atrasada; sem nenhuma das duas recusa", async () => {
-    const lote = await matrizes([{ sexo: "Fêmea", categoria: "Vaca atrasada", quantidade: 1 }]);
-    await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Macho", vaca: {} });
-    const c = (await loteGadoPorId(lote.id)).composicao;
-    assert.equal(qtd(c, "Vaca atrasada"), 0);
-    assert.equal(qtd(c, "Vaca parida"), 1);
-    assert.equal(qtd(c, "Bezerro"), 1);
+  it("vaca atrasada não pare: sem vaca mojando o parto é recusado", async () => {
+    const lote = await matrizes([{ sexo: "Fêmea", categoria: "Vaca atrasada", quantidade: 3 }]);
     await assert.rejects(
       () => registrarParto(lote.id, { data: hoje(), sexoBezerro: "Macho", vaca: {} }),
-      /não tem vaca mojando ou atrasada/
+      /não tem vaca mojando/
     );
+    const c = (await loteGadoPorId(lote.id)).composicao;
+    assert.equal(qtd(c, "Vaca atrasada"), 3);
+    assert.equal(qtd(c, "Bezerro"), 0);
   });
 
   it("vaca parida cadastrada na composição (sem parto registrado) só recebe o bezerro", async () => {
@@ -113,7 +111,8 @@ describe("desmamar", () => {
     assert.equal(qtd(origem, "Bezerra") + qtd(origem, "Bezerro"), 0);
     assert.equal(qtd(origem, "Vaca parida"), 0);
     assert.equal(qtd(origem, "Vaca atrasada"), 5 + 2);
-    assert.equal(totalCabecas(origem), 8);
+    assert.equal(qtd(origem, "Vaca mojando"), 2);
+    assert.equal(totalCabecas(origem), 10);
 
     const novo = await loteGadoPorId(destino.id);
     assert.equal(qtd(novo.composicao, "Bezerra"), 1);
@@ -146,7 +145,7 @@ describe("desmamar", () => {
   });
 
   it("respeita as cabeças cadastradas uma a uma", async () => {
-    const lote = await matrizes([{ sexo: "Fêmea", categoria: "Vaca atrasada", quantidade: 1 }]);
+    const lote = await matrizes([{ sexo: "Fêmea", categoria: "Vaca mojando", quantidade: 1 }]);
     const p = await registrarParto(lote.id, { data: hoje(), sexoBezerro: "Fêmea", vaca: {} });
     for (const cor of ["Branca", "Preta"]) {
       await criarCabeca(lote.id, {
