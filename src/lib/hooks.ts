@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { lerConfiguracao, type Configuracao } from "./config";
+import type { DadosFinanceiros } from "./resumoFinanceiro";
 import { db } from "./db";
-import type { Cabeca, CompraRecurso, LoteGado, Nota, Parto, Pasto, Recurso, Tarefa, TipoRecurso, UsoRecurso } from "./types";
+import type { Cabeca, CompraRecurso, LoteGado, Movimentacao, Nota, Parto, Pasto, Recurso, Tarefa, TipoRecurso, UsoRecurso } from "./types";
 
 const ordenarTexto = (a: string, b: string) =>
   a.localeCompare(b, "pt-BR", { numeric: true });
@@ -135,6 +136,7 @@ export function usePendentesSync(): number | undefined {
       db.recursos.where("syncStatus").equals("pending").count(),
       db.comprasRecurso.where("syncStatus").equals("pending").count(),
       db.usosRecurso.where("syncStatus").equals("pending").count(),
+      db.movimentacoes.where("syncStatus").equals("pending").count(),
     ]);
     return contagens.reduce((soma, n) => soma + n, 0);
   }, []);
@@ -188,4 +190,17 @@ export function useHistoricoRecurso(id: string): { compras: CompraRecurso[]; uso
     usos.sort((a, b) => b.data.localeCompare(a.data) || b.createdAt.localeCompare(a.createdAt));
     return { compras, usos };
   }, [id]);
+}
+
+/** Tudo o que Finanças soma: lançamentos, compras e usos de estoque (e os itens, inclusive excluídos). */
+export function useDadosFinanceiros(): (DadosFinanceiros & { movimentacoes: Movimentacao[]; comprasRecurso: CompraRecurso[]; recursos: Recurso[] }) | undefined {
+  return useLiveQuery(async () => {
+    const [movimentacoes, comprasRecurso, usosRecurso, recursos] = await Promise.all([
+      db.movimentacoes.filter((m) => !m.deletedAt).toArray(),
+      db.comprasRecurso.filter((c) => !c.deletedAt).toArray(),
+      db.usosRecurso.filter((u) => !u.deletedAt).toArray(),
+      db.recursos.toArray(),
+    ]);
+    return { movimentacoes, comprasRecurso, usosRecurso, recursos };
+  }, []);
 }

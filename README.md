@@ -157,3 +157,14 @@ src/
 - No pasto, ao marcar **sal** ou **remédio** como feito: escolhe o item do estoque e a quantidade usada (decimal, vários itens), ou cadastra o item na hora. Dá para marcar sem baixar do estoque.
 - Alertas no Início: estoque zerado, abaixo do mínimo, ou acabando pelo consumo médio (prazo configurável em Perfil, padrão 15 dias).
 - Banco local na versão 6 (tabelas recursos, comprasRecurso, usosRecurso). 82 testes.
+
+## Etapa 6: Finanças
+
+- Aba **Finanças** com filtros de Ano, Mês e Pasto e os totais Entrou, Saiu e Saldo.
+- **Vender gado**: escolhe o lote e quantas cabeças de cada tipo (ou o lote inteiro). O valor pode ser informado como total, por cabeça ou por arroba (mostra o total calculado). As cabeças saem do rebanho.
+- **Comprar gado**: cria um lote novo (com pasto) ou soma a um lote existente. Valor por total, por cabeça ou por arroba.
+- **Despesas** manuais com categoria (Veterinário, Funcionário, Cerca e reforma, Combustível, Adubo e pasto, Outros) e pasto opcional.
+- Compras de estoque feitas em Recursos entram como despesa (Sal e suplementos, Remédios). Com filtro de pasto, vale o custo do que foi usado naquele pasto.
+- Gráficos: entradas x saídas por mês (toque no mês para ver os valores, ou veja em tabela), despesas por categoria e custo por pasto.
+- Excluir um lançamento apaga só o lançamento; o rebanho não volta sozinho.
+- Banco local na versão 7 (tabela movimentacoes). 92 testes.

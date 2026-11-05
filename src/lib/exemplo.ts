@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { criarCabeca, criarLoteGado } from "./gado";
 import { criarRecurso } from "./recursos";
+import { registrarDespesa } from "./financas";
 import { criarNota, criarPasto, criarTarefa } from "./pastos";
 import { addDias, addMeses } from "./rotinas";
 import type { LoteGadoInput, Pasto } from "./types";
@@ -163,6 +164,24 @@ export async function carregarDadosExemplo(): Promise<number> {
     await criarRecurso({ tipo: "Remédio", nome: "Ivermectina", kgPorSaco: null, precoUnitario: 48.5, estoqueMinimo: 1 }, 4);
   } catch {
     // já cadastrados
+  }
+  // Despesas de exemplo em meses anteriores do mesmo ano (para o gráfico de Finanças).
+  try {
+    const t = new Date();
+    const dia = (mesesAtras: number) => {
+      const d = new Date(t.getFullYear(), t.getMonth() - mesesAtras, 10);
+      return d.getFullYear() === t.getFullYear() ? d.toISOString().slice(0, 10) : null;
+    };
+    for (const [m, desc, cat, valor] of [
+      [0, "Consulta do veterinário", "Veterinário", 350],
+      [1, "Arame farpado", "Cerca e reforma", 820.5],
+      [2, "Diesel do trator", "Combustível", 410],
+    ] as const) {
+      const data = dia(m);
+      if (data && data <= t.toISOString().slice(0, 10)) await registrarDespesa({ descricao: desc, categoria: cat, valor, data, pastoId: null });
+    }
+  } catch {
+    // sem despesas de exemplo
   }
   return criados;
 }
