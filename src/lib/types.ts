@@ -204,6 +204,40 @@ export interface UsoRecurso extends Sincronizavel {
   custo: number | null; // quantidade x preço no momento do uso
 }
 
+// ---------------------------------------------------------------------------
+// Finanças: vendas e compras de gado e outras despesas
+// (as compras de estoque de Recursos entram como despesa automaticamente)
+// ---------------------------------------------------------------------------
+
+export type TipoMovimentacao = "Venda" | "Compra" | "Despesa";
+
+/** Categorias das despesas lançadas à mão. */
+export const CATEGORIAS_DESPESA = [
+  "Veterinário",
+  "Funcionário",
+  "Cerca e reforma",
+  "Combustível",
+  "Adubo e pasto",
+  "Outros",
+] as const;
+
+export interface Movimentacao extends Sincronizavel {
+  id: string;
+  tipo: TipoMovimentacao;
+  data: string; // YYYY-MM-DD
+  valor: number; // total em R$ (sempre positivo)
+  descricao: string; // despesa: o que foi; venda/compra: resumo das cabeças
+  categoria: string; // despesa: uma de CATEGORIAS_DESPESA ("" nas vendas e compras)
+  pastoId: string | null; // pasto onde o gado estava, ou a que pasto a despesa se refere
+  loteGadoId: string | null; // lote de onde saiu (venda) ou onde entrou (compra)
+  loteNome: string; // nome do lote na hora (fica guardado mesmo que o lote seja excluído)
+  cabecas: number; // quantas cabeças (venda/compra); 0 nas despesas
+  precoArroba: number | null; // se o valor foi calculado por arroba
+  arrobas: number | null;
+  contraparte: string; // comprador (venda) ou vendedor (compra)
+  observacoes: string;
+}
+
 export interface User {
   email: string;
   name: string;
