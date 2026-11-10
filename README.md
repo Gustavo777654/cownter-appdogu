@@ -176,3 +176,9 @@ src/
 - O Início avisa antes do fim (prazo escolhido em Perfil: 3, 7, 10, 15 ou 30 dias; padrão 7) e depois que o aluguel venceu. Desmarcar a caixinha remove o aluguel.
 - Mudar o valor: ao editar o pasto, o novo valor vale **a partir de uma data** (meses anteriores não mudam) ou **desde o início** (muda todos).
 - 101 testes.
+
+### Aviso de rotina (sal e remédio)
+
+- Rotina marcada como feita hoje não aparece mais como aviso no Início.
+- Em rotinas curtas (ex.: sal de 7 em 7 dias) o aviso só aparece na segunda metade do ciclo, para não ficar sempre na tela.
+- 103 testes e roteiro de varredura de links e botões (e2e8).

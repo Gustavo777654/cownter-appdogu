@@ -127,6 +127,21 @@ describe("alertas da tela inicial", () => {
     assert.equal(alertas[1].titulo, "Dar remédio");
   });
 
+  it("rotina feita hoje some do aviso, mesmo com intervalo curto (sal de 7 em 7 dias)", () => {
+    for (const intervalo of [1, 3, 5, 7, 30]) {
+      const l = pasto({ salUltimaData: hoje, salIntervaloDias: intervalo });
+      assert.deepEqual(coletarAlertas([l], [], hoje), [], `intervalo ${intervalo}`);
+    }
+  });
+
+  it("rotina curta só avisa na segunda metade do ciclo", () => {
+    const l = (ultima: string) => pasto({ salUltimaData: ultima, salIntervaloDias: 7 });
+    assert.equal(coletarAlertas([l("2026-10-22")], [], hoje).length, 0); // faltam 6
+    assert.equal(coletarAlertas([l("2026-10-20")], [], hoje).length, 0); // faltam 4 (metade do ciclo é 3)
+    assert.equal(coletarAlertas([l("2026-10-19")], [], hoje).length, 1); // faltam 3
+    assert.equal(coletarAlertas([l("2026-10-10")], [], hoje).length, 1); // atrasado
+  });
+
   it("não mostra o que está longe (mais de 7 dias) nem rotina sem intervalo", () => {
     const l = pasto({
       remedioUltimaData: "2026-10-01",
