@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   DESMAMA_MESES_PADRAO,
+  ALUGUEL_DIAS_PADRAO,
+  OPCOES_ALUGUEL_DIAS,
   ESTOQUE_DIAS_PADRAO,
   OPCOES_ESTOQUE_DIAS,
   lerConfiguracao,
@@ -25,12 +27,14 @@ export default function PerfilPage() {
   const [apagarDias, setApagarDias] = useState<number | null>(null);
   const [desmamaMeses, setDesmamaMeses] = useState<number>(DESMAMA_MESES_PADRAO);
   const [estoqueDias, setEstoqueDias] = useState<number>(ESTOQUE_DIAS_PADRAO);
+  const [aluguelDias, setAluguelDias] = useState<number>(ALUGUEL_DIAS_PADRAO);
 
   useEffect(() => {
     const cfg = lerConfiguracao();
     setApagarDias(cfg.apagarTarefasFeitasDias);
     setDesmamaMeses(cfg.desmamaMeses);
     setEstoqueDias(cfg.estoqueDiasAviso);
+    setAluguelDias(cfg.aluguelDiasAviso);
   }, []);
 
   async function trocarApagar(valor: string) {
@@ -50,6 +54,12 @@ export default function PerfilPage() {
     const dias = Number(valor);
     setEstoqueDias(dias);
     salvarConfiguracao({ estoqueDiasAviso: dias });
+  }
+
+  function trocarAluguel(valor: string) {
+    const dias = Number(valor);
+    setAluguelDias(dias);
+    salvarConfiguracao({ aluguelDiasAviso: dias });
   }
 
   function sair() {
@@ -170,6 +180,25 @@ export default function PerfilPage() {
           </select>
           <p className="mt-1.5 text-xs text-dark/55">
             Calculado pelo consumo médio do sal e do remédio. O aviso pelo mínimo de sacos ou frascos é definido em cada item de Recursos.
+          </p>
+
+          <label htmlFor="cfg-aluguel" className="mt-4 block font-semibold text-dark">
+            Avisar o fim do aluguel de pasto com
+          </label>
+          <select
+            id="cfg-aluguel"
+            className="field mt-2"
+            value={String(aluguelDias)}
+            onChange={(e) => trocarAluguel(e.target.value)}
+          >
+            {OPCOES_ALUGUEL_DIAS.map((d) => (
+              <option key={d} value={d}>
+                {d} dias de antecedência
+              </option>
+            ))}
+          </select>
+          <p className="mt-1.5 text-xs text-dark/55">
+            O Início avisa quando o aluguel de um pasto estiver para terminar e depois que vencer.
           </p>
         </div>
 

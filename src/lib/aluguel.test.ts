@@ -64,3 +64,31 @@ describe("aluguel de pasto", () => {
     assert.equal((await db.pastos.get(p.id))?.aluguel?.meses, 2);
   });
 });
+
+describe("reajuste do aluguel", () => {
+  const base = { valorMensal: 1000, inicio: "2026-08-10", meses: 6 };
+  it("a partir de uma data não muda os meses anteriores", async () => {
+    const { reajustarAluguel, valorDaParcela } = await import("./aluguel");
+    const a = reajustarAluguel(base, 1200, { desde: "2026-10-10" });
+    assert.equal(valorDaParcela(a, "2026-08-10"), 1000);
+    assert.equal(valorDaParcela(a, "2026-09-10"), 1000);
+    assert.equal(valorDaParcela(a, "2026-10-10"), 1200);
+    assert.equal(valorDaParcela(a, "2026-11-10"), 1200);
+    const b = reajustarAluguel(a, 1500, { desde: "2026-11-10" });
+    assert.equal(valorDaParcela(b, "2026-10-10"), 1200);
+    assert.equal(valorDaParcela(b, "2026-11-10"), 1500);
+  });
+  it("desde o início muda todas as parcelas", async () => {
+    const { reajustarAluguel, valorDaParcela } = await import("./aluguel");
+    const a = reajustarAluguel(reajustarAluguel(base, 1200, { desde: "2026-10-10" }), 900, "inicio");
+    assert.equal(valorDaParcela(a, "2026-08-10"), 900);
+    assert.equal(valorDaParcela(a, "2026-11-10"), 900);
+  });
+  it("Finanças usa o valor de cada mês", async () => {
+    const { reajustarAluguel } = await import("./aluguel");
+    const a = reajustarAluguel(base, 1200, { desde: "2026-10-10" });
+    const d = dados([{ id: "p", nome: "N", deletedAt: null, aluguel: a }]);
+    const l = lancamentos(d, { ano: 2026, mes: null, pastoId: null }, "2026-11-12");
+    assert.deepEqual(l.map((x) => x.valor), [1000, 1000, 1200, 1200]);
+  });
+});

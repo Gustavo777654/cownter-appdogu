@@ -173,5 +173,6 @@ src/
 
 - No cadastro do pasto, a caixinha **Pasto alugado** abre: valor por mês, início e quantidade de meses (opcional; em branco vale 1 mês).
 - Cada mês já começado vira uma despesa **Aluguel de pasto** em Finanças, ligada ao pasto (entra nos gráficos e no custo por pasto).
-- O Início avisa 7 dias antes do fim e depois que o aluguel venceu. Desmarcar a caixinha remove o aluguel.
-- 98 testes.
+- O Início avisa antes do fim (prazo escolhido em Perfil: 3, 7, 10, 15 ou 30 dias; padrão 7) e depois que o aluguel venceu. Desmarcar a caixinha remove o aluguel.
+- Mudar o valor: ao editar o pasto, o novo valor vale **a partir de uma data** (meses anteriores não mudam) ou **desde o início** (muda todos).
+- 101 testes.
