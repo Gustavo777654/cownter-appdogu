@@ -25,7 +25,13 @@ function limparAluguel(a: AluguelPasto | null | undefined): AluguelPasto | null 
   if (a.meses !== null && (!Number.isInteger(a.meses) || a.meses < 1 || a.meses > 120)) {
     throw new Error("Quantidade de meses inválida. Use um número inteiro ou deixe em branco.");
   }
-  return { valorMensal: Math.round(a.valorMensal * 100) / 100, inicio: a.inicio, meses: a.meses };
+  const reajustes = (a.reajustes ?? []).map((r) => {
+    if (!Number.isFinite(r.valorMensal) || r.valorMensal <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(r.desde)) {
+      throw new Error("Reajuste do aluguel inválido.");
+    }
+    return { desde: r.desde, valorMensal: Math.round(r.valorMensal * 100) / 100 };
+  });
+  return { valorMensal: Math.round(a.valorMensal * 100) / 100, inicio: a.inicio, meses: a.meses, reajustes };
 }
 
 function limparPasto(input: PastoInput): PastoInput {

@@ -8,6 +8,26 @@ export const JANELA_ALUGUEL_DIAS = 7;
 
 export const mesesDoAluguel = (a: AluguelPasto): number => a.meses ?? 1;
 
+/** Valor mensal que valia na data (considera os reajustes). */
+export function valorDaParcela(a: AluguelPasto, data: string): number {
+  let valor = a.valorMensal;
+  let desde = "";
+  for (const r of a.reajustes ?? []) {
+    if (r.desde <= data && r.desde >= desde) {
+      valor = r.valorMensal;
+      desde = r.desde;
+    }
+  }
+  return valor;
+}
+
+/** Aplica um novo valor. "inicio" vale para todas as parcelas; senão, só a partir de `desde`. */
+export function reajustarAluguel(a: AluguelPasto, novoValor: number, aplicar: "inicio" | { desde: string }): AluguelPasto {
+  if (aplicar === "inicio") return { ...a, valorMensal: novoValor, reajustes: [] };
+  const antes = (a.reajustes ?? []).filter((r) => r.desde < aplicar.desde);
+  return { ...a, reajustes: [...antes, { desde: aplicar.desde, valorMensal: novoValor }] };
+}
+
 /** Último dia do aluguel (início + meses, menos 1 dia). */
 export function fimDoAluguel(a: AluguelPasto): string | null {
   const depois = addMeses(a.inicio, mesesDoAluguel(a));
@@ -40,7 +60,7 @@ export function parcelasDeAluguel(
   for (const p of pastos) {
     if (p.deletedAt || !p.aluguel) continue;
     for (const data of parcelasAteHoje(p.aluguel, hojeIso)) {
-      lista.push({ pastoId: p.id, pastoNome: p.nome, data, valor: p.aluguel.valorMensal });
+      lista.push({ pastoId: p.id, pastoNome: p.nome, data, valor: valorDaParcela(p.aluguel, data) });
     }
   }
   return lista;

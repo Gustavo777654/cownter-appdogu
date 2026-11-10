@@ -7,7 +7,8 @@ import { Segmented } from "@/components/ui/Segmented";
 import { lerNumero, lerReais, textoNumero } from "@/components/recursos/campos";
 import { atualizarPasto, criarPasto } from "@/lib/pastos";
 import { hoje } from "@/lib/utils";
-import { NIVEIS_PASTO, type Pasto, type NivelPasto } from "@/lib/types";
+import { reajustarAluguel, valorDaParcela } from "@/lib/aluguel";
+import { NIVEIS_PASTO, type AluguelPasto, type Pasto, type NivelPasto } from "@/lib/types";
 import { COR_NIVEL_SELECIONADO } from "./nivel";
 
 interface PastoFormSheetProps {
@@ -28,6 +29,8 @@ export function PastoFormSheet({ open, pasto, onClose, onCreated }: PastoFormShe
   const [valorAluguel, setValorAluguel] = useState("");
   const [inicioAluguel, setInicioAluguel] = useState(hoje());
   const [mesesAluguel, setMesesAluguel] = useState("");
+  const [aplicar, setAplicar] = useState<"inicio" | "data">("data");
+  const [desdeReajuste, setDesdeReajuste] = useState(hoje());
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
 
@@ -37,7 +40,9 @@ export function PastoFormSheet({ open, pasto, onClose, onCreated }: PastoFormShe
     setArea(pasto?.areaHa != null ? String(pasto.areaHa).replace(".", ",") : "");
     setNivel(pasto?.nivelPasto ?? "Alto");
     setAlugado(!!pasto?.aluguel);
-    setValorAluguel(pasto?.aluguel ? String(pasto.aluguel.valorMensal).replace(".", ",") : "");
+    setValorAluguel(pasto?.aluguel ? String(valorDaParcela(pasto.aluguel, hoje())).replace(".", ",") : "");
+    setAplicar("data");
+    setDesdeReajuste(hoje());
     setInicioAluguel(pasto?.aluguel?.inicio ?? hoje());
     setMesesAluguel(textoNumero(pasto?.aluguel?.meses));
     setErro("");
@@ -57,7 +62,7 @@ export function PastoFormSheet({ open, pasto, onClose, onCreated }: PastoFormShe
       }
     }
 
-    let aluguel: { valorMensal: number; inicio: string; meses: number | null } | null = null;
+    let aluguel: AluguelPasto | null = null;
     if (alugado) {
       const valor = lerReais(valorAluguel);
       if (valor === null || !Number.isFinite(valor) || valor <= 0) {
@@ -73,7 +78,19 @@ export function PastoFormSheet({ open, pasto, onClose, onCreated }: PastoFormShe
         setErro("Meses do aluguel: use um número inteiro ou deixe em branco.");
         return;
       }
-      aluguel = { valorMensal: valor, inicio: inicioAluguel, meses };
+      const antigo = pasto?.aluguel;
+      if (!antigo) {
+        aluguel = { valorMensal: valor, inicio: inicioAluguel, meses, reajustes: [] };
+      } else {
+        aluguel = { ...antigo, inicio: inicioAluguel, meses };
+        if (valor !== valorDaParcela(antigo, hoje())) {
+          if (aplicar === "data" && !desdeReajuste) {
+            setErro("Informe a partir de que data o novo valor vale.");
+            return;
+          }
+          aluguel = reajustarAluguel(aluguel, valor, aplicar === "inicio" ? "inicio" : { desde: desdeReajuste });
+        }
+      }
     }
 
     setSalvando(true);
@@ -188,6 +205,29 @@ export function PastoFormSheet({ open, pasto, onClose, onCreated }: PastoFormShe
                   placeholder="Ex: 1.500,00"
                 />
               </div>
+              {pasto?.aluguel && lerReais(valorAluguel) !== valorDaParcela(pasto.aluguel, hoje()) && (
+                <fieldset className="space-y-2 rounded-xl bg-brand-50 p-3 text-sm">
+                  <legend className="px-1 font-semibold text-dark">Novo valor vale</legend>
+                  <label className="flex items-center gap-2">
+                    <input type="radio" name="aluguel-aplicar" checked={aplicar === "data"} onChange={() => setAplicar("data")} className="accent-brand-600" />
+                    A partir de uma data (meses anteriores não mudam)
+                  </label>
+                  {aplicar === "data" && (
+                    <input
+                      id="pasto-aluguel-desde"
+                      type="date"
+                      aria-label="Novo valor vale a partir de"
+                      className="field"
+                      value={desdeReajuste}
+                      onChange={(e) => setDesdeReajuste(e.target.value)}
+                    />
+                  )}
+                  <label className="flex items-center gap-2">
+                    <input type="radio" name="aluguel-aplicar" checked={aplicar === "inicio"} onChange={() => setAplicar("inicio")} className="accent-brand-600" />
+                    Desde o início do aluguel (muda todos os meses)
+                  </label>
+                </fieldset>
+              )}
               <div>
                 <label htmlFor="pasto-aluguel-inicio" className="field-label">
                   Início do aluguel

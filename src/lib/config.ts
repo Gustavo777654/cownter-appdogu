@@ -16,6 +16,10 @@ export const DESMAMA_MESES_PADRAO = 7;
 export const OPCOES_ESTOQUE_DIAS = [7, 10, 15, 20, 30, 45] as const;
 export const ESTOQUE_DIAS_PADRAO = 15;
 
+/** Avisar no Início quando o aluguel de um pasto terminar em até N dias. */
+export const OPCOES_ALUGUEL_DIAS = [3, 7, 10, 15, 30] as const;
+export const ALUGUEL_DIAS_PADRAO = 7;
+
 const CHAVE = "cownter.config";
 
 export interface Configuracao {
@@ -25,9 +29,11 @@ export interface Configuracao {
   desmamaMeses: number;
   /** Avisar quando o estoque durar menos que N dias (pelo consumo médio). */
   estoqueDiasAviso: number;
+  /** Avisar o fim do aluguel de pasto com N dias de antecedência. */
+  aluguelDiasAviso: number;
 }
 
-const PADRAO: Configuracao = { apagarTarefasFeitasDias: null, desmamaMeses: DESMAMA_MESES_PADRAO, estoqueDiasAviso: ESTOQUE_DIAS_PADRAO };
+const PADRAO: Configuracao = { apagarTarefasFeitasDias: null, desmamaMeses: DESMAMA_MESES_PADRAO, estoqueDiasAviso: ESTOQUE_DIAS_PADRAO, aluguelDiasAviso: ALUGUEL_DIAS_PADRAO };
 
 export function lerConfiguracao(): Configuracao {
   try {
@@ -48,6 +54,11 @@ export function lerConfiguracao(): Configuracao {
         (OPCOES_ESTOQUE_DIAS as readonly number[]).includes(dados.estoqueDiasAviso)
           ? dados.estoqueDiasAviso
           : ESTOQUE_DIAS_PADRAO,
+      aluguelDiasAviso:
+        typeof dados.aluguelDiasAviso === "number" &&
+        (OPCOES_ALUGUEL_DIAS as readonly number[]).includes(dados.aluguelDiasAviso)
+          ? dados.aluguelDiasAviso
+          : ALUGUEL_DIAS_PADRAO,
     };
   } catch {
     return { ...PADRAO };

@@ -7,8 +7,8 @@ import { ArrowLeft, Moon, PencilSimple, Plant, Trash, Warning } from "@phosphor-
 import { alterarSituacao, atualizarNivel, excluirPasto } from "@/lib/pastos";
 import { usePasto } from "@/lib/hooks";
 import { NIVEIS_PASTO } from "@/lib/types";
-import { cn, formatDataBR, formatDesde } from "@/lib/utils";
-import { fimDoAluguel, mesesDoAluguel } from "@/lib/aluguel";
+import { cn, formatDataBR, formatDesde, hoje } from "@/lib/utils";
+import { fimDoAluguel, mesesDoAluguel, valorDaParcela } from "@/lib/aluguel";
 import { formatarReais } from "@/lib/recursos";
 import { Segmented } from "@/components/ui/Segmented";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
@@ -110,9 +110,14 @@ export default function PastoPage() {
           <section className="card text-sm text-dark/80">
             <p className="font-bold text-dark">Pasto alugado</p>
             <p>
-              {formatarReais(pasto.aluguel.valorMensal)} por mês · {mesesDoAluguel(pasto.aluguel)}{" "}
+              {formatarReais(valorDaParcela(pasto.aluguel, hoje()))} por mês · {mesesDoAluguel(pasto.aluguel)}{" "}
               {mesesDoAluguel(pasto.aluguel) === 1 ? "mês" : "meses"}
             </p>
+            {(pasto.aluguel.reajustes ?? []).map((r) => (
+              <p key={r.desde} className="text-dark/60">
+                {formatarReais(r.valorMensal)} por mês desde {formatDataBR(r.desde)}
+              </p>
+            ))}
             <p>
               De {formatDataBR(pasto.aluguel.inicio)} até {formatDataBR(fimDoAluguel(pasto.aluguel) ?? pasto.aluguel.inicio)}
             </p>

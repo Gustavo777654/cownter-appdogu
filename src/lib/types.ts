@@ -131,6 +131,8 @@ export interface AluguelPasto {
   valorMensal: number;
   inicio: string; // YYYY-MM-DD
   meses: number | null;
+  /** Mudanças de valor a partir de uma data (o valor antigo continua valendo para as parcelas anteriores). */
+  reajustes?: { desde: string; valorMensal: number }[];
 }
 
 export interface Pasto extends Sincronizavel {

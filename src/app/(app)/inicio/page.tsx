@@ -93,7 +93,7 @@ export default function InicioPage() {
         : [],
     [recursos, usosRecurso, config]
   );
-  const alugueis = useMemo(() => (pastos ? coletarAlertasAluguel(pastos, hoje()) : []), [pastos]);
+  const alugueis = useMemo(() => (pastos && config ? coletarAlertasAluguel(pastos, hoje(), config.aluguelDiasAviso) : []), [pastos, config]);
   const atrasados = alugueis.filter((a) => a.dias < 0).length + (alertas?.filter((a) => a.dias < 0).length ?? 0) + desmamas.filter((d) => d.dias < 0).length;
 
   const primeiroNome = user?.name.split(" ")[0] ?? "";
