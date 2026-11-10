@@ -1,4 +1,6 @@
-import type { CompraRecurso, Movimentacao, Recurso, UsoRecurso } from "./types";
+import { CAT_ALUGUEL, parcelasDeAluguel } from "./aluguel";
+import type { CompraRecurso, Movimentacao, Pasto, Recurso, UsoRecurso } from "./types";
+import { hoje } from "./utils";
 
 // Funções puras (sem banco) que somam o dinheiro por período, categoria e pasto.
 
@@ -12,6 +14,8 @@ export interface DadosFinanceiros {
   usosRecurso: Pick<UsoRecurso, "recursoId" | "pastoId" | "data" | "custo" | "deletedAt">[];
   /** Todos os itens de estoque, inclusive excluídos (só para saber se é suplemento ou remédio). */
   recursos: Pick<Recurso, "id" | "tipo" | "nome">[];
+  /** Pastos (para o aluguel mensal). */
+  pastos?: Pick<Pasto, "id" | "nome" | "aluguel" | "deletedAt">[];
 }
 
 export interface Filtro {
@@ -42,7 +46,7 @@ const noPeriodo = (data: string, f: Filtro) => {
  * despesas e compras de estoque (saídas). Com pasto: vendas, compras e despesas daquele pasto mais o
  * custo do sal e do remédio gastos nele (as compras de estoque não pertencem a um pasto).
  */
-export function lancamentos(d: DadosFinanceiros, f: Filtro): Lancamento[] {
+export function lancamentos(d: DadosFinanceiros, f: Filtro, hojeIso: string = hoje()): Lancamento[] {
   const tipoDe = new Map(d.recursos.map((r) => [r.id, r.tipo]));
   const lista: Lancamento[] = [];
 
@@ -56,6 +60,11 @@ export function lancamentos(d: DadosFinanceiros, f: Filtro): Lancamento[] {
       valor: m.valor,
       categoria: m.tipo === "Venda" ? "Venda de gado" : m.tipo === "Compra" ? CAT_GADO : m.categoria,
     });
+  }
+
+  for (const a of parcelasDeAluguel(d.pastos ?? [], hojeIso)) {
+    if (!noPeriodo(a.data, f) || (f.pastoId && a.pastoId !== f.pastoId)) continue;
+    lista.push({ chave: `aluguel:${a.pastoId}:${a.data}`, data: a.data, entrada: false, valor: a.valor, categoria: CAT_ALUGUEL });
   }
 
   if (!f.pastoId) {
@@ -120,11 +129,15 @@ export function saidasPorCategoria(l: Lancamento[]): { categoria: string; valor:
  * Custo de cada pasto no período: despesas ligadas a ele mais o sal e o remédio gastos nele.
  * (Compra e venda de gado não entram: não são custo do pasto.) Ignora o filtro de pasto.
  */
-export function custoPorPasto(d: DadosFinanceiros, f: Omit<Filtro, "pastoId">): { pastoId: string; valor: number }[] {
+export function custoPorPasto(d: DadosFinanceiros, f: Omit<Filtro, "pastoId">, hojeIso: string = hoje()): { pastoId: string; valor: number }[] {
   const mapa = new Map<string, number>();
   for (const m of d.movimentacoes) {
     if (m.deletedAt || m.tipo !== "Despesa" || !m.pastoId || !noPeriodo(m.data, { ...f, pastoId: null })) continue;
     mapa.set(m.pastoId, (mapa.get(m.pastoId) ?? 0) + m.valor);
+  }
+  for (const a of parcelasDeAluguel(d.pastos ?? [], hojeIso)) {
+    if (!noPeriodo(a.data, { ...f, pastoId: null })) continue;
+    mapa.set(a.pastoId, (mapa.get(a.pastoId) ?? 0) + a.valor);
   }
   for (const u of d.usosRecurso) {
     if (u.deletedAt || u.custo === null || !noPeriodo(u.data, { ...f, pastoId: null })) continue;

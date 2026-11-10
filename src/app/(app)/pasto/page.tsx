@@ -7,7 +7,9 @@ import { ArrowLeft, Moon, PencilSimple, Plant, Trash, Warning } from "@phosphor-
 import { alterarSituacao, atualizarNivel, excluirPasto } from "@/lib/pastos";
 import { usePasto } from "@/lib/hooks";
 import { NIVEIS_PASTO } from "@/lib/types";
-import { cn, formatDesde } from "@/lib/utils";
+import { cn, formatDataBR, formatDesde } from "@/lib/utils";
+import { fimDoAluguel, mesesDoAluguel } from "@/lib/aluguel";
+import { formatarReais } from "@/lib/recursos";
 import { Segmented } from "@/components/ui/Segmented";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { LotesDoPasto } from "@/components/pastos/LotesDoPasto";
@@ -104,6 +106,19 @@ export default function PastoPage() {
       </header>
 
       <div className="space-y-6 px-4">
+        {pasto.aluguel && (
+          <section className="card text-sm text-dark/80">
+            <p className="font-bold text-dark">Pasto alugado</p>
+            <p>
+              {formatarReais(pasto.aluguel.valorMensal)} por mês · {mesesDoAluguel(pasto.aluguel)}{" "}
+              {mesesDoAluguel(pasto.aluguel) === 1 ? "mês" : "meses"}
+            </p>
+            <p>
+              De {formatDataBR(pasto.aluguel.inicio)} até {formatDataBR(fimDoAluguel(pasto.aluguel) ?? pasto.aluguel.inicio)}
+            </p>
+          </section>
+        )}
+
         <section className="card space-y-4">
           <div>
             <Segmented

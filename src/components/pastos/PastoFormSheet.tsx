@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { Warning } from "@phosphor-icons/react";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Segmented } from "@/components/ui/Segmented";
+import { lerNumero, lerReais, textoNumero } from "@/components/recursos/campos";
 import { atualizarPasto, criarPasto } from "@/lib/pastos";
+import { hoje } from "@/lib/utils";
 import { NIVEIS_PASTO, type Pasto, type NivelPasto } from "@/lib/types";
 import { COR_NIVEL_SELECIONADO } from "./nivel";
 
@@ -22,6 +24,10 @@ export function PastoFormSheet({ open, pasto, onClose, onCreated }: PastoFormShe
   const [nome, setNome] = useState("");
   const [area, setArea] = useState("");
   const [nivel, setNivel] = useState<NivelPasto>("Alto");
+  const [alugado, setAlugado] = useState(false);
+  const [valorAluguel, setValorAluguel] = useState("");
+  const [inicioAluguel, setInicioAluguel] = useState(hoje());
+  const [mesesAluguel, setMesesAluguel] = useState("");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
 
@@ -30,6 +36,10 @@ export function PastoFormSheet({ open, pasto, onClose, onCreated }: PastoFormShe
     setNome(pasto?.nome ?? "");
     setArea(pasto?.areaHa != null ? String(pasto.areaHa).replace(".", ",") : "");
     setNivel(pasto?.nivelPasto ?? "Alto");
+    setAlugado(!!pasto?.aluguel);
+    setValorAluguel(pasto?.aluguel ? String(pasto.aluguel.valorMensal).replace(".", ",") : "");
+    setInicioAluguel(pasto?.aluguel?.inicio ?? hoje());
+    setMesesAluguel(textoNumero(pasto?.aluguel?.meses));
     setErro("");
     setSalvando(false);
   }, [open, pasto]);
@@ -47,9 +57,28 @@ export function PastoFormSheet({ open, pasto, onClose, onCreated }: PastoFormShe
       }
     }
 
+    let aluguel: { valorMensal: number; inicio: string; meses: number | null } | null = null;
+    if (alugado) {
+      const valor = lerReais(valorAluguel);
+      if (valor === null || !Number.isFinite(valor) || valor <= 0) {
+        setErro("Informe o valor do aluguel por mês, por exemplo 1.500,00.");
+        return;
+      }
+      if (!inicioAluguel) {
+        setErro("Informe a data de início do aluguel.");
+        return;
+      }
+      const meses = lerNumero(mesesAluguel);
+      if (meses !== null && (!Number.isInteger(meses) || meses < 1 || meses > 120)) {
+        setErro("Meses do aluguel: use um número inteiro ou deixe em branco.");
+        return;
+      }
+      aluguel = { valorMensal: valor, inicio: inicioAluguel, meses };
+    }
+
     setSalvando(true);
     try {
-      const dados = { nome, areaHa, nivelPasto: nivel };
+      const dados = { nome, areaHa, nivelPasto: nivel, aluguel };
       if (pasto) {
         await atualizarPasto(pasto.id, dados);
         onClose();
@@ -131,6 +160,64 @@ export function PastoFormSheet({ open, pasto, onClose, onCreated }: PastoFormShe
           <p className="mt-1.5 text-xs text-dark/55">
             Alto: muito capim. Médio: capim razoável. Baixo: pouco capim, precisa descansar.
           </p>
+        </div>
+
+        <div className="rounded-xl border border-brand-100 p-3">
+          <label className="flex items-center gap-3 font-semibold text-dark">
+            <input
+              id="pasto-alugado"
+              type="checkbox"
+              className="h-5 w-5 accent-brand-600"
+              checked={alugado}
+              onChange={(e) => setAlugado(e.target.checked)}
+            />
+            Pasto alugado
+          </label>
+          {alugado && (
+            <div className="mt-3 space-y-3">
+              <div>
+                <label htmlFor="pasto-aluguel-valor" className="field-label">
+                  Valor por mês (R$) <span className="text-red-600">*</span>
+                </label>
+                <input
+                  id="pasto-aluguel-valor"
+                  className="field"
+                  inputMode="decimal"
+                  value={valorAluguel}
+                  onChange={(e) => setValorAluguel(e.target.value)}
+                  placeholder="Ex: 1.500,00"
+                />
+              </div>
+              <div>
+                <label htmlFor="pasto-aluguel-inicio" className="field-label">
+                  Início do aluguel
+                </label>
+                <input
+                  id="pasto-aluguel-inicio"
+                  type="date"
+                  className="field"
+                  value={inicioAluguel}
+                  onChange={(e) => setInicioAluguel(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="pasto-aluguel-meses" className="field-label">
+                  Por quantos meses (opcional)
+                </label>
+                <input
+                  id="pasto-aluguel-meses"
+                  className="field"
+                  inputMode="numeric"
+                  value={mesesAluguel}
+                  onChange={(e) => setMesesAluguel(e.target.value)}
+                  placeholder="Em branco = 1 mês"
+                />
+              </div>
+              <p className="text-xs text-dark/55">
+                Cada mês do aluguel vira uma despesa em Finanças. O app avisa no Início 7 dias antes de terminar.
+              </p>
+            </div>
+          )}
         </div>
       </form>
     </BottomSheet>

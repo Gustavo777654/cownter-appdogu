@@ -64,6 +64,7 @@ export function PastoCard({
           <p className="mt-0.5 text-sm text-dark/60">
             {reservado ? "Descansando" : "Em uso"} {formatDesde(pasto.situacaoDesde)}
             {pasto.areaHa !== null && ` · ${pasto.areaHa.toLocaleString("pt-BR")} ha`}
+            {pasto.aluguel && " · Alugado"}
           </p>
 
           <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-dark/80">
