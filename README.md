@@ -168,3 +168,10 @@ src/
 - Gráficos: entradas x saídas por mês (toque no mês para ver os valores, ou veja em tabela), despesas por categoria e custo por pasto.
 - Excluir um lançamento apaga só o lançamento; o rebanho não volta sozinho.
 - Banco local na versão 7 (tabela movimentacoes). 92 testes.
+
+### Pasto alugado
+
+- No cadastro do pasto, a caixinha **Pasto alugado** abre: valor por mês, início e quantidade de meses (opcional; em branco vale 1 mês).
+- Cada mês já começado vira uma despesa **Aluguel de pasto** em Finanças, ligada ao pasto (entra nos gráficos e no custo por pasto).
+- O Início avisa 7 dias antes do fim e depois que o aluguel venceu. Desmarcar a caixinha remove o aluguel.
+- 98 testes.

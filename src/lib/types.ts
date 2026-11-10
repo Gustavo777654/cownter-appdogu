@@ -126,6 +126,13 @@ export type NivelPasto = (typeof NIVEIS_PASTO)[number];
 /** "Reservado" = pasto em descanso, sem lotes de gado (rodízio de pastagem). */
 export type SituacaoPasto = "Em uso" | "Reservado";
 
+/** Aluguel de um pasto (opcional). `meses` vazio = 1 mês. O valor é por mês. */
+export interface AluguelPasto {
+  valorMensal: number;
+  inicio: string; // YYYY-MM-DD
+  meses: number | null;
+}
+
 export interface Pasto extends Sincronizavel {
   id: string;
   nome: string;
@@ -142,9 +149,12 @@ export interface Pasto extends Sincronizavel {
   // Rotina do sal: repete a cada N dias a partir da última vez que levou sal.
   salUltimaData: string; // YYYY-MM-DD ("" = nunca registrado)
   salIntervaloDias: number | null;
+
+  /** Pasto alugado (pastos antigos não têm este campo). */
+  aluguel?: AluguelPasto | null;
 }
 
-export type PastoInput = Pick<Pasto, "nome" | "areaHa" | "nivelPasto">;
+export type PastoInput = Pick<Pasto, "nome" | "areaHa" | "nivelPasto"> & { aluguel?: AluguelPasto | null };
 
 /** Tarefa de um pasto (arrumar cerca, jogar adubo, roçar, jogar veneno...). */
 export interface Tarefa extends Sincronizavel {

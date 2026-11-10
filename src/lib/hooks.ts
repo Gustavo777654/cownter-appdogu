@@ -195,12 +195,13 @@ export function useHistoricoRecurso(id: string): { compras: CompraRecurso[]; uso
 /** Tudo o que Finanças soma: lançamentos, compras e usos de estoque (e os itens, inclusive excluídos). */
 export function useDadosFinanceiros(): (DadosFinanceiros & { movimentacoes: Movimentacao[]; comprasRecurso: CompraRecurso[]; recursos: Recurso[] }) | undefined {
   return useLiveQuery(async () => {
-    const [movimentacoes, comprasRecurso, usosRecurso, recursos] = await Promise.all([
+    const [movimentacoes, comprasRecurso, usosRecurso, recursos, pastos] = await Promise.all([
       db.movimentacoes.filter((m) => !m.deletedAt).toArray(),
       db.comprasRecurso.filter((c) => !c.deletedAt).toArray(),
       db.usosRecurso.filter((u) => !u.deletedAt).toArray(),
       db.recursos.toArray(),
+      db.pastos.filter((p) => !p.deletedAt).toArray(),
     ]);
-    return { movimentacoes, comprasRecurso, usosRecurso, recursos };
+    return { movimentacoes, comprasRecurso, usosRecurso, recursos, pastos };
   }, []);
 }

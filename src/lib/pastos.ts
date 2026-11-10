@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { ROTINAS, type TipoRotina } from "./rotinas";
-import type { Pasto, PastoInput, Nota, SituacaoPasto, Tarefa, NivelPasto } from "./types";
+import type { AluguelPasto, Pasto, PastoInput, Nota, SituacaoPasto, Tarefa, NivelPasto } from "./types";
 import { hoje, uuid } from "./utils";
 
 const agora = () => new Date().toISOString();
@@ -18,6 +18,16 @@ async function garantirNomeLivre(nome: string, ignorarId?: string) {
   if (existente) throw new Error(`Já existe um pasto chamado ${existente.nome}.`);
 }
 
+function limparAluguel(a: AluguelPasto | null | undefined): AluguelPasto | null | undefined {
+  if (a === undefined || a === null) return a;
+  if (!Number.isFinite(a.valorMensal) || a.valorMensal <= 0) throw new Error("Informe o valor do aluguel por mês.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(a.inicio)) throw new Error("Informe a data de início do aluguel.");
+  if (a.meses !== null && (!Number.isInteger(a.meses) || a.meses < 1 || a.meses > 120)) {
+    throw new Error("Quantidade de meses inválida. Use um número inteiro ou deixe em branco.");
+  }
+  return { valorMensal: Math.round(a.valorMensal * 100) / 100, inicio: a.inicio, meses: a.meses };
+}
+
 function limparPasto(input: PastoInput): PastoInput {
   const nome = input.nome.trim().replace(/\s+/g, " ");
   if (!nome) throw new Error("Informe o nome do pasto.");
@@ -25,7 +35,10 @@ function limparPasto(input: PastoInput): PastoInput {
   if (area !== null && (!Number.isFinite(area) || area <= 0 || area > 100000)) {
     throw new Error("Área inválida. Use um valor em hectares, por exemplo 15,5.");
   }
-  return { nome, areaHa: area, nivelPasto: input.nivelPasto };
+  const dados: PastoInput = { nome, areaHa: area, nivelPasto: input.nivelPasto };
+  const aluguel = limparAluguel(input.aluguel);
+  if (aluguel !== undefined) dados.aluguel = aluguel;
+  return dados;
 }
 
 async function pastoPorId(id: string): Promise<Pasto> {
@@ -50,6 +63,7 @@ export async function criarPasto(input: PastoInput): Promise<Pasto> {
     remedioIntervaloMeses: null,
     salUltimaData: "",
     salIntervaloDias: null,
+    aluguel: dados.aluguel ?? null,
     createdAt: t,
     updatedAt: t,
     deletedAt: null,

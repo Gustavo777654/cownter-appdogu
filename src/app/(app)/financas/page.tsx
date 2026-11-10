@@ -11,6 +11,7 @@ import { BottomSheet } from "@/components/ui/BottomSheet";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { excluirMovimentacao } from "@/lib/financas";
 import { useDadosFinanceiros, usePastos } from "@/lib/hooks";
+import { CAT_ALUGUEL, parcelasDeAluguel } from "@/lib/aluguel";
 import { formatarReais } from "@/lib/recursos";
 import { custoPorPasto, lancamentos, porMes, saidasPorCategoria, totais } from "@/lib/resumoFinanceiro";
 import type { Movimentacao } from "@/lib/types";
@@ -69,6 +70,18 @@ export default function FinancasPage() {
         detalhe: [m.tipo === "Despesa" ? m.categoria : m.loteNome, m.contraparte, pasto].filter(Boolean).join(" · "),
         valor: m.valor,
         mov: m,
+      });
+    }
+    for (const a of parcelasDeAluguel(dados.pastos ?? [], hoje())) {
+      if (!noPeriodo(a.data) || (pastoId && a.pastoId !== pastoId)) continue;
+      itens.push({
+        chave: `aluguel-${a.pastoId}-${a.data}`,
+        data: a.data,
+        criado: a.data,
+        entrada: false,
+        titulo: `${CAT_ALUGUEL}: ${a.pastoNome}`,
+        detalhe: "Aluguel mensal (lançado automaticamente)",
+        valor: a.valor,
       });
     }
     if (!pastoId) {

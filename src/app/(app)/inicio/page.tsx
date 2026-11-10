@@ -6,6 +6,7 @@ import {
   BellRinging,
   CaretRight,
   CheckSquare,
+  CurrencyDollar,
   Cow,
   Drop,
   Moon,
@@ -22,6 +23,7 @@ import { descreverCabecas, totalDeLotes } from "@/lib/composicao";
 import { useConfiguracao, useLotesGado, usePartosAbertos, usePastos, useRecursos, useTarefasAbertas, useUsosRecurso } from "@/lib/hooks";
 import { coletarAlertasEstoque } from "@/lib/estoque";
 import { coletarAlertasDesmama } from "@/lib/desmama";
+import { coletarAlertasAluguel } from "@/lib/aluguel";
 import { JANELA_ALERTA_DIAS } from "@/lib/rotinas";
 import { coletarAlertas, type Alerta } from "@/lib/rotinas";
 import { hoje } from "@/lib/utils";
@@ -91,7 +93,8 @@ export default function InicioPage() {
         : [],
     [recursos, usosRecurso, config]
   );
-  const atrasados = (alertas?.filter((a) => a.dias < 0).length ?? 0) + desmamas.filter((d) => d.dias < 0).length;
+  const alugueis = useMemo(() => (pastos ? coletarAlertasAluguel(pastos, hoje()) : []), [pastos]);
+  const atrasados = alugueis.filter((a) => a.dias < 0).length + (alertas?.filter((a) => a.dias < 0).length ?? 0) + desmamas.filter((d) => d.dias < 0).length;
 
   const primeiroNome = user?.name.split(" ")[0] ?? "";
 
@@ -110,7 +113,7 @@ export default function InicioPage() {
             )}
           </div>
 
-          {alertas && alertas.length === 0 && desmamas.length === 0 && estoque.length === 0 ? (
+          {alertas && alertas.length === 0 && desmamas.length === 0 && estoque.length === 0 && alugueis.length === 0 ? (
             <div className="card flex items-start gap-3 text-sm text-dark/60">
               <BellRinging size={22} className="mt-0.5 shrink-0 text-brand-700" />
               <p>
@@ -135,6 +138,25 @@ export default function InicioPage() {
                       <p className="truncate font-bold text-dark">{e.titulo}</p>
                       <p className="truncate text-sm text-dark/60">{e.detalhe}</p>
                     </div>
+                    <CaretRight size={18} className="shrink-0 text-dark/30" />
+                  </Link>
+                </li>
+              ))}
+              {alugueis.map((a) => (
+                <li key={a.chave}>
+                  <Link prefetch={false} href={`/pasto?id=${a.pastoId}`} className="card flex items-center gap-3 p-3">
+                    <div
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                        a.dias < 0 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      <CurrencyDollar size={22} weight="duotone" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-bold text-dark">{a.titulo}</p>
+                      <p className="truncate text-sm text-dark/60">{a.pastoNome}</p>
+                    </div>
+                    <PrazoBadge dias={a.dias} />
                     <CaretRight size={18} className="shrink-0 text-dark/30" />
                   </Link>
                 </li>
