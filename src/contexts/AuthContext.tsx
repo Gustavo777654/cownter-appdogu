@@ -18,6 +18,14 @@ const STORAGE_KEY = "cownter_user";
 // "Estar logado" é uma marca guardada no aparelho: assim o app abre sem internet.
 // A sessão do Supabase (token) fica guardada à parte e só é usada para sincronizar.
 
+/** A conta existe, mas o e-mail ainda não foi confirmado com o código. */
+export class PrecisaCodigoErro extends Error {
+  constructor(mensagem: string) {
+    super(mensagem);
+    this.name = "PrecisaCodigoErro";
+  }
+}
+
 interface Resultado {
   /** Fazenda da conta; null se a pessoa ainda precisa criar uma ou entrar com um código. */
   fazenda: Fazenda | null;
@@ -32,6 +40,9 @@ interface AuthContextType {
   nuvem: boolean;
   entrar: (email: string, senha: string) => Promise<Resultado>;
   criarConta: (nome: string, email: string, senha: string) => Promise<Resultado>;
+  /** Confirma o e-mail com o código de 6 dígitos recebido. */
+  confirmarCodigo: (email: string, codigo: string) => Promise<Resultado>;
+  reenviarCodigo: (email: string) => Promise<void>;
   criarFazenda: (nome: string, nomeUsuario: string) => Promise<Fazenda>;
   entrarComCodigo: (codigo: string, nomeUsuario: string) => Promise<Fazenda>;
   /** Conclui o login: liga o aparelho à fazenda (apagando dados de teste) e libera o app. */
@@ -93,7 +104,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const entrar = useCallback(async (email: string, senha: string): Promise<Resultado> => {
     const { data, error } = await supabase().auth.signInWithPassword({ email: email.trim(), password: senha });
-    if (error) throw traduzirAuth(error);
+    if (error) {
+      if (/email not confirmed/i.test(error.message)) {
+        throw new PrecisaCodigoErro("Seu e-mail ainda não foi confirmado. Digite o código que enviamos (ou peça um novo).");
+      }
+      throw traduzirAuth(error);
+    }
     const { data: f, error: e2 } = await supabase().rpc("minha_fazenda");
     if (e2) throw traduzirAuth(e2);
     return { fazenda: lerFazenda(f), nome: nomeDe(data.user?.user_metadata, email) };
@@ -103,9 +119,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase().auth.signUp({ email: email.trim(), password: senha, options: { data: { nome: nome.trim() } } });
     if (error) throw traduzirAuth(error);
     if (!data.session) {
-      throw new Error("Enviamos um link de confirmação para o seu e-mail. Confirme e depois use Entrar.");
+      throw new PrecisaCodigoErro("Enviamos um código de 6 dígitos para o seu e-mail. Digite-o abaixo.");
     }
     return { fazenda: null, nome: nome.trim() || nomeDe(data.user?.user_metadata, email) };
+  }, []);
+
+  const confirmarCodigo = useCallback(async (email: string, codigo: string): Promise<Resultado> => {
+    const { data, error } = await supabase().auth.verifyOtp({ email: email.trim(), token: codigo.replace(/\s/g, ""), type: "signup" });
+    if (error) {
+      if (/expired|invalid/i.test(error.message)) throw new Error("Código incorreto ou vencido. Confira o e-mail ou peça um novo código.");
+      throw traduzirAuth(error);
+    }
+    const { data: f } = await supabase().rpc("minha_fazenda");
+    return { fazenda: lerFazenda(f), nome: nomeDe(data.user?.user_metadata, email) };
+  }, []);
+
+  const reenviarCodigo = useCallback(async (email: string): Promise<void> => {
+    const { error } = await supabase().auth.resend({ type: "signup", email: email.trim() });
+    if (error) throw traduzirAuth(error);
   }, []);
 
   const criarFazenda = useCallback(async (nome: string, nomeUsuario: string): Promise<Fazenda> => {
@@ -177,6 +208,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       nuvem: !!user?.fazendaId,
       entrar,
       criarConta,
+      confirmarCodigo,
+      reenviarCodigo,
       criarFazenda,
       entrarComCodigo,
       concluir,
@@ -184,7 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       atualizarFazenda,
       logout,
     }),
-    [user, isLoading, entrar, criarConta, criarFazenda, entrarComCodigo, concluir, sessaoAberta, atualizarFazenda, logout]
+    [user, isLoading, entrar, criarConta, confirmarCodigo, reenviarCodigo, criarFazenda, entrarComCodigo, concluir, sessaoAberta, atualizarFazenda, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
