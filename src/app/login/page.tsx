@@ -220,6 +220,20 @@ export default function LoginPage() {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              setModo("entrar");
+              setPasso("conta");
+              setErro("");
+              setAviso("Se o e-mail trouxe um link, abra-o para confirmar e depois entre com sua senha.");
+            }}
+            className="btn-ghost w-full text-sm"
+          >
+            O e-mail trouxe um link? Já confirmei, quero entrar
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
               setPasso("conta");
               setErro("");
               setAviso("");
