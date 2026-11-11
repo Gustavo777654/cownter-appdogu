@@ -195,7 +195,7 @@ export default function LoginPage() {
           {aviso && <Mensagem tipo="aviso">{aviso}</Mensagem>}
           <div>
             <label htmlFor="codigo-email" className="field-label">
-              Código de 6 dígitos enviado para {email}
+              Código enviado para {email}
             </label>
             <input
               id="codigo-email"
