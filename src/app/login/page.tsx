@@ -3,18 +3,18 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Warning } from "@phosphor-icons/react";
-import { useAuth } from "@/contexts/AuthContext";
+import { PrecisaCodigoErro, useAuth } from "@/contexts/AuthContext";
 import { Logo } from "@/components/ui/Logo";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { contarRegistrosLocais, fazendaDoAparelho } from "@/lib/sync";
 import type { Fazenda } from "@/lib/types";
 
-type Passo = "conta" | "fazenda";
+type Passo = "conta" | "codigo" | "fazenda";
 type Modo = "entrar" | "criar";
 type FazendaModo = "nova" | "codigo";
 
 export default function LoginPage() {
-  const { entrar, criarConta, criarFazenda, entrarComCodigo, concluir, sessaoAberta, isAuthenticated, isLoading } = useAuth();
+  const { entrar, criarConta, confirmarCodigo, reenviarCodigo, criarFazenda, entrarComCodigo, concluir, sessaoAberta, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const [passo, setPasso] = useState<Passo>("conta");
   const [modo, setModo] = useState<Modo>("entrar");
@@ -24,6 +24,7 @@ export default function LoginPage() {
   const [senha, setSenha] = useState("");
   const [nomeFazenda, setNomeFazenda] = useState("");
   const [codigo, setCodigo] = useState("");
+  const [codigoEmail, setCodigoEmail] = useState("");
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
   const [ocupado, setOcupado] = useState(false);
@@ -72,9 +73,41 @@ export default function LoginPage() {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Não foi possível continuar.";
-      if (/link de confirmação/.test(msg)) setAviso(msg);
-      else setErro(msg);
+      if (err instanceof PrecisaCodigoErro) {
+        setAviso(msg);
+        setCodigoEmail("");
+        setPasso("codigo");
+      } else setErro(msg);
       setOcupado(false);
+    }
+  }
+
+  async function enviarCodigoEmail(e: React.FormEvent) {
+    e.preventDefault();
+    setErro("");
+    setOcupado(true);
+    try {
+      const r = await confirmarCodigo(email, codigoEmail);
+      setNome(r.nome);
+      setAviso("");
+      if (r.fazenda) await finalizar(r.fazenda, r.nome, email.trim());
+      else {
+        setPasso("fazenda");
+        setOcupado(false);
+      }
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Não foi possível confirmar.");
+      setOcupado(false);
+    }
+  }
+
+  async function pedirNovoCodigo() {
+    setErro("");
+    try {
+      await reenviarCodigo(email);
+      setAviso("Enviamos um novo código. O anterior deixou de valer.");
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Não foi possível reenviar.");
     }
   }
 
@@ -154,6 +187,47 @@ export default function LoginPage() {
             {ocupado ? "Aguarde..." : modo === "entrar" ? "Entrar" : "Criar conta"}
           </button>
           <p className="text-center text-xs text-dark/50">Na primeira vez é preciso internet. Depois o app abre e funciona sem sinal.</p>
+        </form>
+      ) : passo === "codigo" ? (
+        <form onSubmit={enviarCodigoEmail} className="space-y-4">
+          <p className="text-center text-base font-semibold text-dark">Confirme seu e-mail</p>
+          {erro && <Mensagem tipo="erro">{erro}</Mensagem>}
+          {aviso && <Mensagem tipo="aviso">{aviso}</Mensagem>}
+          <div>
+            <label htmlFor="codigo-email" className="field-label">
+              Código de 6 dígitos enviado para {email}
+            </label>
+            <input
+              id="codigo-email"
+              className="field text-center font-mono text-2xl tracking-[0.5em]"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={8}
+              value={codigoEmail}
+              onChange={(e) => setCodigoEmail(e.target.value.replace(/[^0-9]/g, ""))}
+              placeholder="000000"
+              required
+            />
+          </div>
+          <button type="submit" disabled={ocupado || codigoEmail.length < 6} className="btn-primary w-full">
+            {ocupado ? "Aguarde..." : "Confirmar"}
+          </button>
+          <button type="button" onClick={pedirNovoCodigo} className="btn-ghost w-full text-sm">
+            Enviar um novo código
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setPasso("conta");
+              setErro("");
+              setAviso("");
+            }}
+            className="btn-ghost w-full text-sm"
+          >
+            Voltar
+          </button>
         </form>
       ) : (
         <form onSubmit={enviarFazenda} className="space-y-4">
