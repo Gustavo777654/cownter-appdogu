@@ -1,6 +1,6 @@
 import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
-import { Serwist } from "serwist";
+import { NetworkOnly, Serwist } from "serwist";
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -21,7 +21,11 @@ const serwist = new Serwist({
   // para o cache e só abriria offline se já tivesse sido visitado online antes.
   // Ignorando o "?...", qualquer pasto abre a partir da página guardada.
   precacheOptions: { ignoreURLParametersMatching: [/.*/] },
-  runtimeCaching: defaultCache,
+  // Chamadas ao servidor (Supabase) nunca vêm do cache: dados velhos atrapalhariam a sincronização.
+  runtimeCaching: [
+    { matcher: ({ url }) => url.hostname.endsWith(".supabase.co"), handler: new NetworkOnly() },
+    ...defaultCache,
+  ],
 });
 
 serwist.addEventListeners();

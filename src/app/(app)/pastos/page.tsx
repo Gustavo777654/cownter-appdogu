@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { ArrowsLeftRight, CaretRight, Moon, Plant, Plus } from "@phosphor-icons/react";
 import { descreverCabecas, resumoComposicao, totalCabecas } from "@/lib/composicao";
@@ -15,6 +16,7 @@ import { PastoCard } from "@/components/pastos/PastoCard";
 import { PastoFormSheet } from "@/components/pastos/PastoFormSheet";
 
 export default function PastosPage() {
+  const { nuvem } = useAuth();
   const pastos = usePastos();
   const lotes = useLotesGado();
   const router = useRouter();
@@ -73,13 +75,15 @@ export default function PastosPage() {
               <Plus size={20} weight="bold" />
               Criar pasto
             </button>
-            <button
-              type="button"
-              onClick={() => carregarDadosExemplo()}
-              className="btn-ghost mt-2 w-full max-w-xs text-sm"
-            >
-              Carregar dados de exemplo
-            </button>
+            {!nuvem && (
+              <button
+                type="button"
+                onClick={() => carregarDadosExemplo()}
+                className="btn-ghost mt-2 w-full max-w-xs text-sm"
+              >
+                Carregar dados de exemplo
+              </button>
+            )}
           </div>
         ) : (
           <>

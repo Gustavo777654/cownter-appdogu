@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { Cow, MagnifyingGlass, Plus } from "@phosphor-icons/react";
 import { descreverCabecas, totalDeLotes } from "@/lib/composicao";
@@ -11,6 +12,7 @@ import { LoteGadoCard } from "@/components/gado/LoteGadoCard";
 import { LoteGadoFormSheet } from "@/components/gado/LoteGadoFormSheet";
 
 export default function GadoPage() {
+  const { nuvem } = useAuth();
   const lotes = useLotesGado();
   const pastos = usePastos();
   const router = useRouter();
@@ -77,13 +79,15 @@ export default function GadoPage() {
               <Plus size={20} weight="bold" />
               Cadastrar lote
             </button>
-            <button
-              type="button"
-              onClick={() => carregarDadosExemplo()}
-              className="btn-ghost mt-2 w-full max-w-xs text-sm"
-            >
-              Carregar dados de exemplo
-            </button>
+            {!nuvem && (
+              <button
+                type="button"
+                onClick={() => carregarDadosExemplo()}
+                className="btn-ghost mt-2 w-full max-w-xs text-sm"
+              >
+                Carregar dados de exemplo
+              </button>
+            )}
           </div>
         ) : filtrados.length === 0 ? (
           <p className="py-10 text-center text-sm text-dark/55">Nenhum lote encontrado com esse nome.</p>

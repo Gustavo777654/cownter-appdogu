@@ -254,4 +254,14 @@ export interface User {
   email: string;
   name: string;
   farm: string;
+  /** Presentes quando a conta é real (nuvem); ausentes no modo local/teste. */
+  fazendaId?: string;
+  papel?: "dono" | "membro";
+}
+
+export interface Fazenda {
+  id: string;
+  nome: string;
+  codigo: string | null; // só o dono enxerga
+  papel: "dono" | "membro";
 }
