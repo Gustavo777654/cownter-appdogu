@@ -187,3 +187,13 @@ src/
 
 - Na tela de qualquer lote há o botão **Registrar venda** (o lote já vem escolhido). Vendendo o lote inteiro, volta para a lista de gado.
 - O card "Separados para venda" do Início abre o lote, onde está o botão.
+
+## Etapa 7: Conta e sincronização (Supabase)
+
+- Login real (e-mail e senha), uma **fazenda** por conta, com **código de convite** para outras pessoas entrarem na mesma fazenda (Perfil, só o dono vê e pode gerar um novo).
+- O app continua gravando tudo primeiro no aparelho (funciona sem internet). Com internet, envia o que mudou e baixa o que outros aparelhos mudaram (ao abrir, a cada minuto, depois de cada alteração e no botão "Sincronizar agora").
+- Conflito: vale o que foi salvo por último; registro excluído não volta por edição de outro aparelho.
+- Ao entrar em uma fazenda, os dados de teste do aparelho são apagados (com confirmação). Sair da conta apaga os dados do aparelho (avisa se há algo não enviado).
+- Servidor: `supabase/schema.sql` (colar no SQL Editor do Supabase). Testado em um Postgres local de teste (regras de segurança, convite, conflito).
+- Sem conta (modo local/teste usado nos testes automáticos): marca `cownter_user` no navegador, sem sincronização e com dados de exemplo.
+- 111 testes e roteiro e2e10 (login/fazenda/convite com servidor simulado).

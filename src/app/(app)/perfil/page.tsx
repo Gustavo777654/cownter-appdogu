@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CloudArrowUp, SignOut, WifiHigh, WifiSlash } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowsClockwise, CloudArrowUp, Copy, SignOut, WifiHigh, WifiSlash } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -18,9 +18,14 @@ import {
 } from "@/lib/config";
 import { apagarTarefasFeitasAntigas } from "@/lib/pastos";
 import { useOnline, usePendentesSync } from "@/lib/hooks";
+import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
+import { supabase } from "@/lib/supabase";
+import { assinarEstadoSync, estadoSync, sincronizar, traduzirErro } from "@/lib/sync";
+import { useSyncExternalStore } from "react";
+import type { Fazenda } from "@/lib/types";
 
 export default function PerfilPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, nuvem, atualizarFazenda } = useAuth();
   const router = useRouter();
   const online = useOnline();
   const pendentes = usePendentesSync();
@@ -28,6 +33,11 @@ export default function PerfilPage() {
   const [desmamaMeses, setDesmamaMeses] = useState<number>(DESMAMA_MESES_PADRAO);
   const [estoqueDias, setEstoqueDias] = useState<number>(ESTOQUE_DIAS_PADRAO);
   const [aluguelDias, setAluguelDias] = useState<number>(ALUGUEL_DIAS_PADRAO);
+  const sync = useSyncExternalStore(assinarEstadoSync, estadoSync, estadoSync);
+  const [saindo, setSaindo] = useState(false);
+  const [codigo, setCodigo] = useState<string | null>(null);
+  const [membros, setMembros] = useState<{ nome: string | null; papel: string }[]>([]);
+  const [msgConta, setMsgConta] = useState("");
 
   useEffect(() => {
     const cfg = lerConfiguracao();
@@ -62,9 +72,54 @@ export default function PerfilPage() {
     salvarConfiguracao({ aluguelDiasAviso: dias });
   }
 
-  function sair() {
-    logout();
+  async function sair() {
+    await logout();
     router.replace("/login");
+  }
+
+  // Código de convite e participantes (precisa de internet; sem ela mostra o que já sabe).
+  useEffect(() => {
+    if (!nuvem || !online) return;
+    let ativo = true;
+    (async () => {
+      try {
+        const { data: f } = await supabase().rpc("minha_fazenda");
+        const fz = Array.isArray(f) ? (f[0] as Fazenda | undefined) : undefined;
+        if (ativo && fz) {
+          setCodigo(fz.codigo);
+          atualizarFazenda(fz);
+        }
+        const { data: m } = await supabase().from("membros").select("nome,papel").order("entrou_em", { ascending: true });
+        if (ativo && m) setMembros(m as { nome: string | null; papel: string }[]);
+      } catch {
+        /* sem conexão: mantém o que já está na tela */
+      }
+    })();
+    return () => {
+      ativo = false;
+    };
+  }, [nuvem, online]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function copiarCodigo() {
+    if (!codigo) return;
+    try {
+      await navigator.clipboard.writeText(codigo);
+      setMsgConta("Código copiado.");
+    } catch {
+      setMsgConta("Não foi possível copiar. Selecione o código e copie manualmente.");
+    }
+  }
+
+  async function novoCodigo() {
+    setMsgConta("");
+    try {
+      const { data, error } = await supabase().rpc("gerar_novo_codigo");
+      if (error) throw error;
+      setCodigo(String(data));
+      setMsgConta("Novo código gerado. O anterior não vale mais.");
+    } catch (e) {
+      setMsgConta(traduzirErro(e));
+    }
   }
 
   return (
@@ -114,14 +169,88 @@ export default function PerfilPage() {
             </div>
             <div>
               <p className="font-semibold text-dark">
-                {pendentes ?? 0} {pendentes === 1 ? "registro" : "registros"} no aparelho
+                {nuvem
+                  ? `${pendentes ?? 0} ${pendentes === 1 ? "registro aguardando envio" : "registros aguardando envio"}`
+                  : `${pendentes ?? 0} ${pendentes === 1 ? "registro" : "registros"} no aparelho`}
               </p>
               <p className="text-sm text-dark/60">
-                O envio para a nuvem será ativado em uma próxima etapa.
+                {nuvem
+                  ? pendentes
+                    ? "Aguardando envio para a nuvem."
+                    : "Tudo enviado para a nuvem."
+                  : "Entre com uma conta para enviar à nuvem."}
               </p>
             </div>
           </div>
         </div>
+
+        {nuvem && (
+          <div className="card space-y-3">
+            <p className="text-xs text-dark/55">Fazenda e sincronização</p>
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0 text-sm text-dark/70">
+                <p>
+                  {sync.rodando
+                    ? "Sincronizando..."
+                    : sync.ultima
+                      ? `Última sincronização às ${new Date(sync.ultima).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+                      : "Ainda não sincronizou neste acesso."}
+                </p>
+              </div>
+              <button
+                type="button"
+                id="btn-sincronizar"
+                disabled={!online || sync.rodando || !user?.fazendaId}
+                onClick={() => user?.fazendaId && void sincronizar(user.fazendaId)}
+                className="btn-secondary min-h-11 shrink-0 px-3 text-sm"
+              >
+                <ArrowsClockwise size={18} />
+                Sincronizar agora
+              </button>
+            </div>
+            {sync.erro && (
+              <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700">
+                {sync.erro}
+              </p>
+            )}
+
+            {membros.length > 0 && (
+              <div>
+                <p className="field-label">Quem participa</p>
+                <ul className="text-sm text-dark/80">
+                  {membros.map((m, i) => (
+                    <li key={i}>
+                      {m.nome || "Sem nome"} <span className="text-dark/50">· {m.papel === "dono" ? "dono" : "membro"}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {user?.papel === "dono" && (
+              <div>
+                <p className="field-label">Código de convite</p>
+                {codigo ? (
+                  <div className="flex items-center gap-2">
+                    <span id="codigo-convite" className="flex-1 rounded-xl bg-brand-50 px-3 py-3 text-center font-mono text-lg font-bold tracking-widest text-brand-900">
+                      {codigo}
+                    </span>
+                    <button type="button" onClick={copiarCodigo} className="btn-secondary min-h-11 px-3" aria-label="Copiar código">
+                      <Copy size={20} />
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-dark/60">{online ? "Carregando..." : "Conecte-se à internet para ver o código."}</p>
+                )}
+                <p className="mt-1.5 text-xs text-dark/55">Quem criar uma conta e digitar este código entra na sua fazenda.</p>
+                <button type="button" onClick={novoCodigo} disabled={!online} className="btn-ghost mt-1 px-0 text-sm">
+                  Gerar novo código
+                </button>
+              </div>
+            )}
+            {msgConta && <p className="text-sm text-dark/70">{msgConta}</p>}
+          </div>
+        )}
 
         <div className="card">
           <p className="text-xs text-dark/55">Configurações</p>
@@ -202,12 +331,24 @@ export default function PerfilPage() {
           </p>
         </div>
 
-        <button type="button" onClick={sair} className="btn-secondary w-full">
+        <button type="button" onClick={() => setSaindo(true)} className="btn-secondary w-full">
           <SignOut size={20} />
           Sair da conta
         </button>
 
         <p className="pt-2 text-center text-xs text-dark/40">Cownter · protótipo v0.1.0</p>
+
+        <ConfirmSheet open={saindo} title="Sair da conta?" confirmLabel="Sair" onClose={() => setSaindo(false)} onConfirm={sair}>
+          <p className="text-sm text-dark/70">
+            Os dados deste aparelho serão apagados e baixados de novo quando você entrar.
+            {nuvem && (pendentes ?? 0) > 0 && (
+              <strong className="mt-2 block text-red-700">
+                Atenção: {pendentes} {pendentes === 1 ? "registro ainda não foi enviado" : "registros ainda não foram enviados"} para a nuvem e {pendentes === 1 ? "será perdido" : "serão perdidos"}. Conecte-se à internet e sincronize antes de sair.
+              </strong>
+            )}
+            {!nuvem && " Como não há conta, esses dados não estão na nuvem e serão perdidos."}
+          </p>
+        </ConfirmSheet>
       </div>
     </>
   );
