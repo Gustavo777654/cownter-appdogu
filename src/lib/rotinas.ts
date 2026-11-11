@@ -121,7 +121,11 @@ export function coletarAlertas(
       const data = proximaData(ultima, tipo, intervalo);
       if (!data) continue;
       const dias = diasParaVencer(data, hojeIso);
-      if (dias === null || dias > janela) continue;
+      if (dias === null) continue;
+      // Rotina feita hoje não avisa. Em rotinas curtas, só avisa na segunda metade do ciclo
+      // (senão o aviso nunca sumiria: sal de 7 em 7 dias estaria sempre "dentro dos próximos 7 dias").
+      const ciclo = diasEntre(ultima, data) ?? 0;
+      if (ultima >= hojeIso || dias > Math.min(janela, Math.floor(ciclo / 2))) continue;
       alertas.push({
         chave: `${pasto.id}:${tipo}`,
         tipo,
