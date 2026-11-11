@@ -182,3 +182,8 @@ src/
 - Rotina marcada como feita hoje não aparece mais como aviso no Início.
 - Em rotinas curtas (ex.: sal de 7 em 7 dias) o aviso só aparece na segunda metade do ciclo, para não ficar sempre na tela.
 - 103 testes e roteiro de varredura de links e botões (e2e8).
+
+### Registrar venda na tela do lote
+
+- Na tela de qualquer lote há o botão **Registrar venda** (o lote já vem escolhido). Vendendo o lote inteiro, volta para a lista de gado.
+- O card "Separados para venda" do Início abre o lote, onde está o botão.

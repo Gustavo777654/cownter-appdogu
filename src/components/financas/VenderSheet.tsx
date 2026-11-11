@@ -9,7 +9,18 @@ import { maximosMoviveis } from "@/lib/transferencia";
 import { hoje } from "@/lib/utils";
 import { ValorCampo, VALOR_VAZIO, lerValor, type ValorEstado } from "./ValorCampo";
 
-export function VenderSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function VenderSheet({
+  open,
+  onClose,
+  loteIdInicial,
+  onVendido,
+}: {
+  open: boolean;
+  onClose: () => void;
+  /** Já deixa este lote escolhido (usado na tela do lote). */
+  loteIdInicial?: string;
+  onVendido?: () => void;
+}) {
   const lotes = useLotesGado();
   const [loteId, setLoteId] = useState("");
   const lote = lotes?.find((l) => l.id === loteId) ?? null;
@@ -26,7 +37,7 @@ export function VenderSheet({ open, onClose }: { open: boolean; onClose: () => v
 
   useEffect(() => {
     if (!open) return;
-    setLoteId("");
+    setLoteId(loteIdInicial ?? "");
     setQtds([]);
     setMarcadas(new Set());
     setValor(VALOR_VAZIO);
@@ -34,7 +45,7 @@ export function VenderSheet({ open, onClose }: { open: boolean; onClose: () => v
     setData(hoje());
     setErro("");
     setSalvando(false);
-  }, [open]);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setQtds(lote ? lote.composicao.map(() => "") : []);
@@ -67,6 +78,7 @@ export function VenderSheet({ open, onClose }: { open: boolean; onClose: () => v
     setSalvando(true);
     try {
       await registrarVenda({ loteId: lote.id, itens, cabecaIds: Array.from(marcadas), data, valor: v, comprador, observacoes: "" });
+      onVendido?.();
       onClose();
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Não foi possível registrar.");
