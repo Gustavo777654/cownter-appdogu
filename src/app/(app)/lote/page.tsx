@@ -12,6 +12,7 @@ import {
   Syringe,
   Tag,
   Trash,
+  CurrencyDollar,
 } from "@phosphor-icons/react";
 import { descreverCabecas, totalCabecas } from "@/lib/composicao";
 import { atualizarLoteGado, excluirLoteGado } from "@/lib/gado";
@@ -20,6 +21,7 @@ import type { LoteGado, LoteGadoInput } from "@/lib/types";
 import { cn, formatDataBR, formatPeso } from "@/lib/utils";
 import { CabecasSection } from "@/components/gado/CabecasSection";
 import { MoverCabecasSheet } from "@/components/gado/MoverCabecasSheet";
+import { VenderSheet } from "@/components/financas/VenderSheet";
 import { PartosSection } from "@/components/gado/PartosSection";
 import { LoteGadoFormSheet } from "@/components/gado/LoteGadoFormSheet";
 import { DestinoPastoSheet } from "@/components/pastos/DestinoPastoSheet";
@@ -51,11 +53,18 @@ export default function LotePage() {
   const [movendo, setMovendo] = useState(false);
   const [movendoCabecas, setMovendoCabecas] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
+  const [vendendo, setVendendo] = useState(false);
+  const [vendeu, setVendeu] = useState(false);
   const [erro, setErro] = useState("");
 
   useEffect(() => {
     setId(new URLSearchParams(window.location.search).get("id"));
   }, []);
+
+  // Vendeu o lote inteiro: o lote deixa de existir, então volta para a lista.
+  useEffect(() => {
+    if (vendeu && lote === null) router.replace("/gado");
+  }, [vendeu, lote, router]);
 
   if (id === undefined || lote === undefined) {
     return <p className="py-20 text-center text-sm text-dark/50">Carregando...</p>;
@@ -161,9 +170,13 @@ export default function LotePage() {
             <Tag size={18} />
             {venda ? "Tirar da lista de venda" : "Separar para venda"}
           </button>
+          <button type="button" onClick={() => setVendendo(true)} className="btn-primary min-h-11 w-full text-sm">
+            <CurrencyDollar size={18} weight="bold" />
+            Registrar venda
+          </button>
           {venda && (
             <p className="text-xs text-amber-800">
-              Este lote está separado para venda. O registro da venda chega junto com a aba Finanças.
+              Este lote está separado para venda. Toque em Registrar venda quando fechar o negócio.
             </p>
           )}
         </section>
@@ -263,6 +276,7 @@ export default function LotePage() {
       </div>
 
       <LoteGadoFormSheet open={editando} lote={lote} onClose={() => setEditando(false)} />
+      <VenderSheet open={vendendo} loteIdInicial={lote.id} onClose={() => setVendendo(false)} onVendido={() => setVendeu(true)} />
       <MoverCabecasSheet open={movendoCabecas} lote={lote} onClose={() => setMovendoCabecas(false)} />
       <DestinoPastoSheet open={movendo} lote={lote} onClose={() => setMovendo(false)} />
       <ConfirmSheet
