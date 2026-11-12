@@ -151,6 +151,7 @@ export async function reagendarNotificacoes(): Promise<void> {
       body: n.corpo,
       largeBody: n.corpoLongo,
       schedule: { at: n.quando, allowWhileIdle: true },
+      isExactNotification: false, // horário aproximado: não exige a permissão de "Alarmes e lembretes"
       channelId: CANAL,
       smallIcon: "ic_stat_cownter",
       extra: { rota: "/inicio" },
@@ -169,7 +170,7 @@ export async function notificacaoDeTeste(): Promise<void> {
         id: 9000,
         title: "Cownter: notificação de teste",
         body: "Se você viu isto, os avisos do rebanho vão chegar assim.",
-        schedule: { at: new Date(Date.now() + 5000), allowWhileIdle: true },
+        // sem "schedule": aparece na hora (não depende de alarme do Android)
         channelId: CANAL,
         smallIcon: "ic_stat_cownter",
         extra: { rota: "/inicio" },
