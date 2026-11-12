@@ -119,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase().auth.signUp({ email: email.trim(), password: senha, options: { data: { nome: nome.trim() } } });
     if (error) throw traduzirAuth(error);
     if (!data.session) {
-      throw new PrecisaCodigoErro("Enviamos um código de 6 dígitos para o seu e-mail. Digite-o abaixo.");
+      throw new PrecisaCodigoErro("Enviamos um código para o seu e-mail. Digite-o abaixo.");
     }
     return { fazenda: null, nome: nome.trim() || nomeDe(data.user?.user_metadata, email) };
   }, []);

@@ -1,0 +1,70 @@
+name: Gerar APK Android
+
+# Roda sozinho a cada alteração no Android/notificações e também pelo botão "Run workflow".
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "android/**"
+      - "capacitor.config.ts"
+      - "capacitor-www/**"
+      - "src/lib/notificacoes.ts"
+      - ".github/workflows/android-apk.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Conferir o endereço do app (variável COWNTER_URL)
+        env:
+          COWNTER_URL: ${{ vars.COWNTER_URL }}
+        run: |
+          if [ -z "$COWNTER_URL" ]; then
+            echo "::error::Crie a variável COWNTER_URL em Settings > Secrets and variables > Actions > Variables (ex.: https://seu-app.vercel.app)"
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - name: Sincronizar o projeto Android
+        env:
+          COWNTER_URL: ${{ vars.COWNTER_URL }}
+        run: npx cap sync android
+
+      - name: Compilar o APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Nomear o APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk Cownter.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Cownter-apk
+          path: Cownter.apk
+
+      - name: Publicar em Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: Cownter APK #${{ github.run_number }}
+          body: Baixe o arquivo Cownter.apk no celular Android e instale.
+          files: Cownter.apk

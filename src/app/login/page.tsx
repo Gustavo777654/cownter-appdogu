@@ -195,7 +195,7 @@ export default function LoginPage() {
           {aviso && <Mensagem tipo="aviso">{aviso}</Mensagem>}
           <div>
             <label htmlFor="codigo-email" className="field-label">
-              Código de 6 dígitos enviado para {email}
+              Código enviado para {email}
             </label>
             <input
               id="codigo-email"
@@ -214,6 +214,20 @@ export default function LoginPage() {
           </button>
           <button type="button" onClick={pedirNovoCodigo} className="btn-ghost w-full text-sm">
             Enviar um novo código
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setModo("entrar");
+              setPasso("conta");
+              setErro("");
+              setAviso("Se o e-mail trouxe um link, abra-o para confirmar e depois entre com sua senha.");
+            }}
+            className="btn-ghost w-full text-sm"
+          >
+            O e-mail trouxe um link? Já confirmei, quero entrar
           </button>
           <button
             type="button"

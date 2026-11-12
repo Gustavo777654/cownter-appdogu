@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowsClockwise, CloudArrowUp, Copy, SignOut, WifiHigh, WifiSlash } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowsClockwise, Bell, CloudArrowUp, Copy, SignOut, WifiHigh, WifiSlash } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -14,9 +14,18 @@ import {
   lerConfiguracao,
   OPCOES_APAGAR_TAREFAS,
   OPCOES_DESMAMA_MESES,
+  OPCOES_NOTIFICACAO_HORA,
+  NOTIFICACAO_HORA_PADRAO,
   salvarConfiguracao,
 } from "@/lib/config";
 import { apagarTarefasFeitasAntigas } from "@/lib/pastos";
+import {
+  ehAppNativo,
+  notificacaoDeTeste,
+  pedirPermissaoDeNotificacoes,
+  permissaoDeNotificacoes,
+  reagendarNotificacoes,
+} from "@/lib/notificacoes";
 import { useOnline, usePendentesSync } from "@/lib/hooks";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { supabase } from "@/lib/supabase";
@@ -33,6 +42,11 @@ export default function PerfilPage() {
   const [desmamaMeses, setDesmamaMeses] = useState<number>(DESMAMA_MESES_PADRAO);
   const [estoqueDias, setEstoqueDias] = useState<number>(ESTOQUE_DIAS_PADRAO);
   const [aluguelDias, setAluguelDias] = useState<number>(ALUGUEL_DIAS_PADRAO);
+  const [nativo, setNativo] = useState(false);
+  const [notifAtivas, setNotifAtivas] = useState(true);
+  const [notifHora, setNotifHora] = useState<number>(NOTIFICACAO_HORA_PADRAO);
+  const [notifPermissao, setNotifPermissao] = useState<"granted" | "denied" | "prompt">("prompt");
+  const [msgNotif, setMsgNotif] = useState("");
   const sync = useSyncExternalStore(assinarEstadoSync, estadoSync, estadoSync);
   const [saindo, setSaindo] = useState(false);
   const [codigo, setCodigo] = useState<string | null>(null);
@@ -45,7 +59,42 @@ export default function PerfilPage() {
     setDesmamaMeses(cfg.desmamaMeses);
     setEstoqueDias(cfg.estoqueDiasAviso);
     setAluguelDias(cfg.aluguelDiasAviso);
+    setNotifAtivas(cfg.notificacoesAtivas);
+    setNotifHora(cfg.notificacaoHora);
+    if (ehAppNativo()) {
+      setNativo(true);
+      permissaoDeNotificacoes().then(setNotifPermissao).catch(() => undefined);
+    }
   }, []);
+
+  async function trocarNotifAtivas(ativas: boolean) {
+    setNotifAtivas(ativas);
+    salvarConfiguracao({ notificacoesAtivas: ativas });
+    if (ativas && notifPermissao !== "granted") {
+      const ok = await pedirPermissaoDeNotificacoes().catch(() => false);
+      setNotifPermissao(ok ? "granted" : "denied");
+    }
+    reagendarNotificacoes().catch(() => undefined);
+  }
+
+  function trocarNotifHora(valor: string) {
+    const hora = Number(valor);
+    setNotifHora(hora);
+    salvarConfiguracao({ notificacaoHora: hora });
+    reagendarNotificacoes().catch(() => undefined);
+  }
+
+  async function testarNotificacao() {
+    setMsgNotif("");
+    const ok = notifPermissao === "granted" || (await pedirPermissaoDeNotificacoes().catch(() => false));
+    setNotifPermissao(ok ? "granted" : "denied");
+    if (!ok) {
+      setMsgNotif("O Android bloqueou as notificações. Ative em Configurações do celular → Apps → Cownter → Notificações.");
+      return;
+    }
+    await notificacaoDeTeste().catch(() => undefined);
+    setMsgNotif("Pronto! Em alguns segundos a notificação de teste aparece (pode sair do app para ver).");
+  }
 
   async function trocarApagar(valor: string) {
     const dias = valor === "" ? null : Number(valor);
@@ -330,6 +379,51 @@ export default function PerfilPage() {
             O Início avisa quando o aluguel de um pasto estiver para terminar e depois que vencer.
           </p>
         </div>
+
+        {nativo && (
+          <div className="card space-y-3 p-4" id="cartao-notificacoes">
+            <p className="flex items-center gap-2 font-semibold text-dark">
+              <Bell size={20} className="text-brand-600" />
+              Notificações no celular
+            </p>
+            <label className="flex items-center justify-between gap-3">
+              <span className="text-sm text-dark/80">Receber avisos (sal, remédio, desmama, estoque, aluguel e tarefas)</span>
+              <input
+                id="cfg-notif-ativas"
+                type="checkbox"
+                className="h-5 w-5 accent-brand-600"
+                checked={notifAtivas}
+                onChange={(e) => trocarNotifAtivas(e.target.checked)}
+              />
+            </label>
+            {notifAtivas && (
+              <>
+                <label htmlFor="cfg-notif-hora" className="block text-sm font-semibold text-dark">
+                  Horário do aviso diário
+                </label>
+                <select id="cfg-notif-hora" className="field" value={String(notifHora)} onChange={(e) => trocarNotifHora(e.target.value)}>
+                  {OPCOES_NOTIFICACAO_HORA.map((h) => (
+                    <option key={h} value={h}>
+                      {String(h).padStart(2, "0")}:00
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-dark/55">
+                  Um aviso por dia, só quando houver algo para fazer. Funciona sem internet e com o app fechado.
+                </p>
+              </>
+            )}
+            {notifPermissao === "denied" && (
+              <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-900">
+                As notificações estão bloqueadas no Android. Ative em Configurações do celular → Apps → Cownter → Notificações.
+              </p>
+            )}
+            <button type="button" id="btn-notif-teste" onClick={testarNotificacao} className="btn-secondary w-full">
+              Enviar notificação de teste
+            </button>
+            {msgNotif && <p className="text-xs text-dark/70">{msgNotif}</p>}
+          </div>
+        )}
 
         <button type="button" onClick={() => setSaindo(true)} className="btn-secondary w-full">
           <SignOut size={20} />
