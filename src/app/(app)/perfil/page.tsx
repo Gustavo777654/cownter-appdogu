@@ -92,8 +92,12 @@ export default function PerfilPage() {
       setMsgNotif("O Android bloqueou as notificações. Ative em Configurações do celular → Apps → Cownter → Notificações.");
       return;
     }
-    await notificacaoDeTeste().catch(() => undefined);
-    setMsgNotif("Pronto! Em alguns segundos a notificação de teste aparece (pode sair do app para ver).");
+    try {
+      await notificacaoDeTeste();
+      setMsgNotif("Enviada! Veja a notificação na barra do celular (puxe a barra de cima para baixo).");
+    } catch (e) {
+      setMsgNotif("Não consegui enviar: " + (e instanceof Error ? e.message : String(e)));
+    }
   }
 
   async function trocarApagar(valor: string) {
