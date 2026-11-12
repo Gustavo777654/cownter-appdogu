@@ -198,3 +198,13 @@ src/
 - Servidor: `supabase/schema.sql` (colar no SQL Editor do Supabase). Testado em um Postgres local de teste (regras de segurança, convite, conflito).
 - Sem conta (modo local/teste usado nos testes automáticos): marca `cownter_user` no navegador, sem sincronização e com dados de exemplo.
 - 111 testes e roteiro e2e10 (login/fazenda/convite com servidor simulado).
+
+
+## Etapa 8 — App Android (APK) e notificações
+
+- O app Android (Capacitor) abre o Cownter publicado na web; depois do primeiro acesso funciona sem internet.
+- Avisos (sal, remédio, tarefas, desmama, estoque, aluguel) viram **notificações no celular**: um resumo por dia, no horário escolhido em Perfil (padrão 7h), agendado no aparelho (sem internet, app fechado). Há botão de notificação de teste.
+- **Gerar o APK:** no GitHub, `Settings → Secrets and variables → Actions → Variables`, crie `COWNTER_URL` com o endereço da Vercel. Depois `Actions → Gerar APK Android → Run workflow`. O arquivo `Cownter.apk` aparece em **Releases**.
+- **Instalar:** baixe o APK no celular e permita "instalar de fontes desconhecidas".
+- O APK usa uma chave de teste fixa; para a Play Store será necessária uma chave de publicação própria (etapa futura).
+- Testes: 116 (`npm test`).

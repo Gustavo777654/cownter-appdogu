@@ -20,6 +20,10 @@ export const ESTOQUE_DIAS_PADRAO = 15;
 export const OPCOES_ALUGUEL_DIAS = [3, 7, 10, 15, 30] as const;
 export const ALUGUEL_DIAS_PADRAO = 7;
 
+/** Notificações no celular (app Android): horário em que o aviso do dia toca. */
+export const OPCOES_NOTIFICACAO_HORA = [5, 6, 7, 8, 9, 10] as const;
+export const NOTIFICACAO_HORA_PADRAO = 7;
+
 const CHAVE = "cownter.config";
 
 export interface Configuracao {
@@ -31,9 +35,13 @@ export interface Configuracao {
   estoqueDiasAviso: number;
   /** Avisar o fim do aluguel de pasto com N dias de antecedência. */
   aluguelDiasAviso: number;
+  /** Receber os avisos como notificação no celular (app Android). */
+  notificacoesAtivas: boolean;
+  /** Hora do dia (0-23) em que a notificação toca. */
+  notificacaoHora: number;
 }
 
-const PADRAO: Configuracao = { apagarTarefasFeitasDias: null, desmamaMeses: DESMAMA_MESES_PADRAO, estoqueDiasAviso: ESTOQUE_DIAS_PADRAO, aluguelDiasAviso: ALUGUEL_DIAS_PADRAO };
+const PADRAO: Configuracao = { apagarTarefasFeitasDias: null, desmamaMeses: DESMAMA_MESES_PADRAO, estoqueDiasAviso: ESTOQUE_DIAS_PADRAO, aluguelDiasAviso: ALUGUEL_DIAS_PADRAO, notificacoesAtivas: true, notificacaoHora: NOTIFICACAO_HORA_PADRAO };
 
 export function lerConfiguracao(): Configuracao {
   try {
@@ -59,6 +67,12 @@ export function lerConfiguracao(): Configuracao {
         (OPCOES_ALUGUEL_DIAS as readonly number[]).includes(dados.aluguelDiasAviso)
           ? dados.aluguelDiasAviso
           : ALUGUEL_DIAS_PADRAO,
+      notificacoesAtivas: typeof dados.notificacoesAtivas === "boolean" ? dados.notificacoesAtivas : true,
+      notificacaoHora:
+        typeof dados.notificacaoHora === "number" &&
+        (OPCOES_NOTIFICACAO_HORA as readonly number[]).includes(dados.notificacaoHora)
+          ? dados.notificacaoHora
+          : NOTIFICACAO_HORA_PADRAO,
     };
   } catch {
     return { ...PADRAO };
