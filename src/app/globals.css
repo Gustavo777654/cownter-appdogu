@@ -4,6 +4,8 @@
 
 @layer base {
   html {
+    /* O app só tem tema claro: faz o calendário e as listas do Android virem claros também. */
+    color-scheme: light;
     -webkit-text-size-adjust: 100%;
   }
 
