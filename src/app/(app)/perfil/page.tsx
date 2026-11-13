@@ -21,7 +21,6 @@ import {
 import { apagarTarefasFeitasAntigas } from "@/lib/pastos";
 import {
   ehAppNativo,
-  notificacaoDeTeste,
   pedirPermissaoDeNotificacoes,
   permissaoDeNotificacoes,
   reagendarNotificacoes,
@@ -46,7 +45,6 @@ export default function PerfilPage() {
   const [notifAtivas, setNotifAtivas] = useState(true);
   const [notifHora, setNotifHora] = useState<number>(NOTIFICACAO_HORA_PADRAO);
   const [notifPermissao, setNotifPermissao] = useState<"granted" | "denied" | "prompt">("prompt");
-  const [msgNotif, setMsgNotif] = useState("");
   const sync = useSyncExternalStore(assinarEstadoSync, estadoSync, estadoSync);
   const [saindo, setSaindo] = useState(false);
   const [codigo, setCodigo] = useState<string | null>(null);
@@ -82,17 +80,6 @@ export default function PerfilPage() {
     setNotifHora(hora);
     salvarConfiguracao({ notificacaoHora: hora });
     reagendarNotificacoes().catch(() => undefined);
-  }
-
-  async function testarNotificacao() {
-    setMsgNotif("Enviando o teste (v3)...");
-    try {
-      await notificacaoDeTeste((passo) => setMsgNotif(`Teste (v3): ${passo}`));
-      permissaoDeNotificacoes().then(setNotifPermissao).catch(() => undefined);
-      setMsgNotif("Enviada! Veja a notificação na barra do celular (puxe a barra de cima para baixo).");
-    } catch (e) {
-      setMsgNotif("Não consegui enviar: " + (e instanceof Error ? e.message : String(e)));
-    }
   }
 
   async function trocarApagar(valor: string) {
@@ -417,10 +404,6 @@ export default function PerfilPage() {
                 As notificações estão bloqueadas no Android. Ative em Configurações do celular → Apps → Cownter → Notificações.
               </p>
             )}
-            <button type="button" id="btn-notif-teste" onClick={testarNotificacao} className="btn-secondary w-full">
-              Enviar notificação de teste
-            </button>
-            {msgNotif && <p className="text-xs text-dark/70">{msgNotif}</p>}
           </div>
         )}
 
