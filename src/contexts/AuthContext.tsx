@@ -19,6 +19,26 @@ const STORAGE_KEY = "cownter_user";
 // A sessão do Supabase (token) fica guardada à parte e só é usada para sincronizar.
 
 /** A conta existe, mas o e-mail ainda não foi confirmado com o código. */
+const AVISO_KEY = "cownter_aviso_login";
+
+/** Recado para mostrar na tela de login (ex.: "você foi removido da fazenda"). */
+export function lerAvisoDeLogin(): string {
+  try {
+    const a = localStorage.getItem(AVISO_KEY) ?? "";
+    localStorage.removeItem(AVISO_KEY);
+    return a;
+  } catch {
+    return "";
+  }
+}
+
+export interface Membro {
+  user_id: string;
+  nome: string | null;
+  papel: string;
+  voce: boolean;
+}
+
 export class PrecisaCodigoErro extends Error {
   constructor(mensagem: string) {
     super(mensagem);
@@ -51,6 +71,18 @@ interface AuthContextType {
   sessaoAberta: () => Promise<{ email: string; nome: string } | null>;
   atualizarFazenda: (f: Fazenda) => void;
   logout: () => Promise<void>;
+  /** Manda um código de 6 dígitos para o e-mail, para criar uma senha nova. */
+  pedirCodigoSenha: (email: string) => Promise<void>;
+  /** Confere o código, define a senha nova e entra na conta. */
+  redefinirSenha: (email: string, codigo: string, novaSenha: string) => Promise<Resultado>;
+  trocarSenha: (atual: string, nova: string) => Promise<void>;
+  atualizarNome: (nome: string) => Promise<void>;
+  renomearFazenda: (nome: string) => Promise<void>;
+  listarMembros: () => Promise<Membro[]>;
+  removerMembro: (userId: string) => Promise<void>;
+  excluirConta: (senha: string) => Promise<void>;
+  /** A conta ainda faz parte da fazenda? Se foi removida, sai e avisa. Devolve false nesse caso. */
+  verificarVinculo: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -67,6 +99,8 @@ function traduzirAuth(e: unknown): Error {
   if (/already registered|already been registered/i.test(msg)) return new Error("Já existe uma conta com este e-mail. Use Entrar.");
   if (/password should be at least|weak password/i.test(msg)) return new Error("A senha precisa ter pelo menos 6 caracteres.");
   if (/rate limit|too many/i.test(msg)) return new Error("Muitas tentativas. Aguarde alguns minutos e tente de novo.");
+  if (/different from the old password|same password/i.test(msg)) return new Error("A senha nova precisa ser diferente da atual.");
+  if (/token has expired|otp_expired|invalid.*token|token.*invalid/i.test(msg)) return new Error("Código incorreto ou vencido. Peça um novo código.");
   if (/invalid email|unable to validate email/i.test(msg)) return new Error("E-mail inválido.");
   if (/failed to fetch|network|fetch failed|load failed/i.test(msg)) return new Error("Sem internet. Para criar conta ou entrar pela primeira vez é preciso estar online.");
   return new Error(traduzirErro(e));
@@ -189,6 +223,125 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const pedirCodigoSenha = useCallback(async (email: string): Promise<void> => {
+    const { error } = await supabase().auth.resetPasswordForEmail(email.trim());
+    if (error) throw traduzirAuth(error);
+  }, []);
+
+  const redefinirSenha = useCallback(async (email: string, codigo: string, novaSenha: string): Promise<Resultado> => {
+    if (novaSenha.length < 6) throw new Error("A senha precisa ter pelo menos 6 caracteres.");
+    const { data, error } = await supabase().auth.verifyOtp({ email: email.trim(), token: codigo.replace(/\s/g, ""), type: "recovery" });
+    if (error) throw new Error("Código incorreto ou vencido. Confira o e-mail ou peça um novo código.");
+    const { error: e2 } = await supabase().auth.updateUser({ password: novaSenha });
+    if (e2) {
+      // O código só vale uma vez: fecha a sessão para recomeçar do zero.
+      await supabase().auth.signOut({ scope: "local" }).catch(() => undefined);
+      throw new Error(traduzirAuth(e2).message + " Peça um novo código para tentar de novo.");
+    }
+    const { data: f } = await supabase().rpc("minha_fazenda");
+    return { fazenda: lerFazenda(f), nome: nomeDe(data.user?.user_metadata, email) };
+  }, []);
+
+  const trocarSenha = useCallback(
+    async (atual: string, nova: string): Promise<void> => {
+      if (!user) throw new Error("Entre na sua conta primeiro.");
+      if (nova.length < 6) throw new Error("A senha precisa ter pelo menos 6 caracteres.");
+      if (nova === atual) throw new Error("A senha nova precisa ser diferente da atual.");
+      const { error } = await supabase().auth.signInWithPassword({ email: user.email, password: atual });
+      if (error) throw /invalid login credentials/i.test(error.message) ? new Error("A senha atual está incorreta.") : traduzirAuth(error);
+      const { error: e2 } = await supabase().auth.updateUser({ password: nova });
+      if (e2) throw traduzirAuth(e2);
+    },
+    [user]
+  );
+
+  const atualizarNome = useCallback(
+    async (nome: string): Promise<void> => {
+      const limpo = nome.trim();
+      if (!limpo) throw new Error("Informe o seu nome.");
+      const { error } = await supabase().rpc("atualizar_meu_nome", { p_nome: limpo });
+      if (error) throw traduzirAuth(error);
+      await supabase().auth.updateUser({ data: { nome: limpo } }).catch(() => undefined);
+      setUser((atual) => {
+        if (!atual) return atual;
+        const novo = { ...atual, name: limpo };
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(novo));
+        } catch {
+          /* sem armazenamento */
+        }
+        return novo;
+      });
+    },
+    []
+  );
+
+  const renomearFazenda = useCallback(async (nome: string): Promise<void> => {
+    const { data, error } = await supabase().rpc("renomear_fazenda", { p_nome: nome });
+    if (error) throw traduzirAuth(error);
+    const novoNome = typeof data === "string" ? data : nome.trim();
+    setUser((atual) => {
+      if (!atual) return atual;
+      const novo = { ...atual, farm: novoNome };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(novo));
+      } catch {
+        /* sem armazenamento */
+      }
+      return novo;
+    });
+  }, []);
+
+  const listarMembros = useCallback(async (): Promise<Membro[]> => {
+    const { data, error } = await supabase().rpc("listar_membros");
+    if (error) throw traduzirAuth(error);
+    return (Array.isArray(data) ? data : []) as Membro[];
+  }, []);
+
+  const removerMembro = useCallback(async (userId: string): Promise<void> => {
+    const { error } = await supabase().rpc("remover_membro", { p_user_id: userId });
+    if (error) throw traduzirAuth(error);
+  }, []);
+
+  const excluirConta = useCallback(
+    async (senha: string): Promise<void> => {
+      if (!user) throw new Error("Entre na sua conta primeiro.");
+      const { error } = await supabase().auth.signInWithPassword({ email: user.email, password: senha });
+      if (error) throw /invalid login credentials/i.test(error.message) ? new Error("A senha está incorreta.") : traduzirAuth(error);
+      const { error: e2 } = await supabase().rpc("excluir_fazenda_e_conta");
+      if (e2) throw traduzirAuth(e2);
+      await supabase().auth.signOut({ scope: "local" }).catch(() => undefined);
+      await limparDadosLocais();
+      try {
+        localStorage.setItem(AVISO_KEY, "Sua conta e os dados da fazenda foram excluídos.");
+      } catch {
+        /* sem armazenamento */
+      }
+      guardar(null);
+    },
+    [user, guardar]
+  );
+
+  const verificarVinculo = useCallback(async (): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase().rpc("minha_fazenda");
+      if (error || !Array.isArray(data)) return true; // sem conexão ou erro: não decide nada
+      if (data.length > 0) return true;
+    } catch {
+      return true;
+    }
+    // Resposta vazia e sem erro: a conta não faz mais parte da fazenda.
+    await supabase().auth.signOut({ scope: "local" }).catch(() => undefined);
+    await limparDadosLocais();
+    try {
+      localStorage.setItem(AVISO_KEY, "Você não faz mais parte desta fazenda (o dono removeu o acesso ou a fazenda foi excluída).");
+    } catch {
+      /* sem armazenamento */
+    }
+    guardar(null);
+    return false;
+  }, [guardar]);
+
   const logout = useCallback(async () => {
     try {
       await supabase().auth.signOut({ scope: "local" });
@@ -216,8 +369,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessaoAberta,
       atualizarFazenda,
       logout,
+      pedirCodigoSenha,
+      redefinirSenha,
+      trocarSenha,
+      atualizarNome,
+      renomearFazenda,
+      listarMembros,
+      removerMembro,
+      excluirConta,
+      verificarVinculo,
     }),
-    [user, isLoading, entrar, criarConta, confirmarCodigo, reenviarCodigo, criarFazenda, entrarComCodigo, concluir, sessaoAberta, atualizarFazenda, logout]
+    [user, isLoading, entrar, criarConta, confirmarCodigo, reenviarCodigo, criarFazenda, entrarComCodigo, concluir, sessaoAberta, atualizarFazenda, logout, pedirCodigoSenha, redefinirSenha, trocarSenha, atualizarNome, renomearFazenda, listarMembros, removerMembro, excluirConta, verificarVinculo]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
