@@ -102,20 +102,21 @@ export const ehAppNativo = (): boolean => {
   }
 };
 
-// O plugin é carregado junto com o app (não sob demanda): no celular o download à parte travava.
-async function plugin() {
+// IMPORTANTE: o plugin nunca pode passar por "await" nem sair de uma função async: o Capacitor
+// responde a qualquer nome (inclusive "then") e a espera nunca termina. Por isso é síncrono.
+function plugin() {
   return LocalNotifications;
 }
 
 export async function permissaoDeNotificacoes(): Promise<"granted" | "denied" | "prompt"> {
   if (!ehAppNativo()) return "denied";
-  const p = await (await plugin()).checkPermissions();
+  const p = await plugin().checkPermissions();
   return p.display === "granted" ? "granted" : p.display === "denied" ? "denied" : "prompt";
 }
 
 export async function pedirPermissaoDeNotificacoes(): Promise<boolean> {
   if (!ehAppNativo()) return false;
-  const p = await (await plugin()).requestPermissions();
+  const p = await plugin().requestPermissions();
   return p.display === "granted";
 }
 
@@ -134,7 +135,7 @@ async function carregarDados(): Promise<DadosAvisos> {
 /** Refaz a agenda de notificações do aparelho. Seguro de chamar várias vezes. */
 export async function reagendarNotificacoes(): Promise<void> {
   if (!ehAppNativo()) return;
-  const LN = await plugin();
+  const LN = plugin();
   const pendentes = await LN.getPending();
   if (pendentes.notifications.length) await LN.cancel({ notifications: pendentes.notifications.map((n) => ({ id: n.id })) });
 
@@ -171,7 +172,7 @@ function comLimite<T>(p: Promise<T>, passo: string, ms = 6000): Promise<T> {
 export async function notificacaoDeTeste(avisar: (passo: string) => void = () => undefined): Promise<void> {
   if (!ehAppNativo()) throw new Error("não é o app Android");
   avisar("1/5 carregando o plugin");
-  const LN = await comLimite(plugin(), "carregar o plugin");
+  const LN = plugin();
   avisar("2/5 conferindo a permissão");
   const perm = await comLimite(LN.checkPermissions(), "conferir a permissão");
   if (perm.display !== "granted") {
