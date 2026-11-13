@@ -85,21 +85,10 @@ export default function PerfilPage() {
   }
 
   async function testarNotificacao() {
-    setMsgNotif("Enviando o teste (v2)...");
-    const limite = new Promise<never>((_, rejeitar) =>
-      window.setTimeout(() => rejeitar(new Error("o Android não respondeu em 10 segundos")), 10000)
-    );
+    setMsgNotif("Enviando o teste (v3)...");
     try {
-      const ok = await Promise.race([
-        notifPermissao === "granted" ? Promise.resolve(true) : pedirPermissaoDeNotificacoes(),
-        limite,
-      ]);
-      setNotifPermissao(ok ? "granted" : "denied");
-      if (!ok) {
-        setMsgNotif("O Android bloqueou as notificações. Ative em Configurações do celular → Apps → Cownter → Notificações.");
-        return;
-      }
-      await Promise.race([notificacaoDeTeste(), limite]);
+      await notificacaoDeTeste((passo) => setMsgNotif(`Teste (v3): ${passo}`));
+      permissaoDeNotificacoes().then(setNotifPermissao).catch(() => undefined);
       setMsgNotif("Enviada! Veja a notificação na barra do celular (puxe a barra de cima para baixo).");
     } catch (e) {
       setMsgNotif("Não consegui enviar: " + (e instanceof Error ? e.message : String(e)));
