@@ -1,4 +1,5 @@
 import { Capacitor } from "@capacitor/core";
+import { LocalNotifications } from "@capacitor/local-notifications";
 import { coletarAlertasAluguel } from "./aluguel";
 import { lerConfiguracao, type Configuracao } from "./config";
 import { db } from "./db";
@@ -101,8 +102,8 @@ export const ehAppNativo = (): boolean => {
   }
 };
 
+// O plugin é carregado junto com o app (não sob demanda): no celular o download à parte travava.
 async function plugin() {
-  const { LocalNotifications } = await import("@capacitor/local-notifications");
   return LocalNotifications;
 }
 
