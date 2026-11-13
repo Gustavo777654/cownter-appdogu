@@ -177,3 +177,72 @@ revoke all on function public.minhas_fazendas(), public.novo_codigo_convite(), p
 grant execute on function public.minhas_fazendas(), public.criar_fazenda(text, text),
   public.entrar_na_fazenda(text, text), public.minha_fazenda(), public.gerar_novo_codigo(),
   public.enviar_registros(jsonb) to authenticated;
+
+-- ============================================================================
+-- Etapa 9: conta e fazenda (nome, membros, exclusão)
+-- ============================================================================
+
+-- Troca o meu nome na fazenda.
+create or replace function public.atualizar_meu_nome(p_nome text)
+returns void language plpgsql security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then raise exception 'Entre na sua conta primeiro.'; end if;
+  if coalesce(trim(p_nome), '') = '' then raise exception 'Informe o seu nome.'; end if;
+  update public.membros set nome = trim(p_nome) where user_id = auth.uid();
+end $$;
+
+-- Troca o nome da fazenda (só o dono).
+create or replace function public.renomear_fazenda(p_nome text)
+returns text language plpgsql security definer set search_path = public
+as $$
+declare v_nome text := trim(coalesce(p_nome, ''));
+begin
+  if v_nome = '' then raise exception 'Informe o nome da fazenda.'; end if;
+  update public.fazendas set nome = v_nome
+   where id in (select fazenda_id from public.membros where user_id = auth.uid() and papel = 'dono');
+  if not found then raise exception 'Só o dono da fazenda pode trocar o nome.'; end if;
+  return v_nome;
+end $$;
+
+-- Quem participa da minha fazenda ("voce" marca a minha linha).
+create or replace function public.listar_membros()
+returns table (user_id uuid, nome text, papel text, entrou_em timestamptz, voce boolean)
+language sql stable security definer set search_path = public
+as $$
+  select m.user_id, m.nome, m.papel, m.entrou_em, (m.user_id = auth.uid())
+  from public.membros m
+  where m.fazenda_id in (select fazenda_id from public.membros where user_id = auth.uid())
+  order by m.entrou_em
+$$;
+
+-- Tira uma pessoa da fazenda (só o dono; o dono não se remove). A conta dela continua
+-- existindo, mas ela perde o acesso aos dados da fazenda.
+create or replace function public.remover_membro(p_user_id uuid)
+returns void language plpgsql security definer set search_path = public
+as $$
+declare v_fazenda uuid;
+begin
+  select fazenda_id into v_fazenda from public.membros where user_id = auth.uid() and papel = 'dono';
+  if v_fazenda is null then raise exception 'Só o dono da fazenda pode remover pessoas.'; end if;
+  delete from public.membros where fazenda_id = v_fazenda and user_id = p_user_id and papel <> 'dono';
+  if not found then raise exception 'Não foi possível remover esta pessoa.'; end if;
+end $$;
+
+-- Apaga a fazenda com todos os dados e a conta do dono (só o dono). Quem participava
+-- perde o acesso e, ao entrar de novo, precisa criar uma fazenda ou usar outro código.
+create or replace function public.excluir_fazenda_e_conta()
+returns void language plpgsql security definer set search_path = public, auth
+as $$
+declare v_fazenda uuid;
+begin
+  select fazenda_id into v_fazenda from public.membros where user_id = auth.uid() and papel = 'dono';
+  if v_fazenda is null then raise exception 'Só o dono da fazenda pode excluir a conta.'; end if;
+  delete from public.fazendas where id = v_fazenda;   -- apaga membros e registros junto
+  delete from auth.users where id = auth.uid();
+end $$;
+
+revoke all on function public.atualizar_meu_nome(text), public.renomear_fazenda(text), public.listar_membros(),
+  public.remover_membro(uuid), public.excluir_fazenda_e_conta() from public, anon;
+grant execute on function public.atualizar_meu_nome(text), public.renomear_fazenda(text), public.listar_membros(),
+  public.remover_membro(uuid), public.excluir_fazenda_e_conta() to authenticated;

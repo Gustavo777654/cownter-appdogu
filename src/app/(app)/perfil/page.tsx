@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowsClockwise, Bell, CloudArrowUp, Copy, SignOut, WifiHigh, WifiSlash } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowsClockwise, Bell, CaretRight, CloudArrowUp, Copy, SignOut, WifiHigh, WifiSlash } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -218,6 +218,16 @@ export default function PerfilPage() {
             </div>
           </div>
         </div>
+
+        {nuvem && (
+          <Link prefetch={false} href="/conta" id="link-conta" className="card flex items-center justify-between gap-3">
+            <span>
+              <span className="block font-semibold text-dark">Minha conta</span>
+              <span className="block text-sm text-dark/60">Nome, senha, fazenda e quem participa</span>
+            </span>
+            <CaretRight size={20} className="shrink-0 text-dark/40" />
+          </Link>
+        )}
 
         {nuvem && (
           <div className="card space-y-3">
