@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
+import { LocalNotifications } from "@capacitor/local-notifications";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/db";
 import { ehAppNativo, pedirPermissaoDeNotificacoes, permissaoDeNotificacoes, reagendarNotificacoes } from "@/lib/notificacoes";
@@ -52,10 +53,11 @@ export function NotificacoesRunner() {
   useEffect(() => {
     if (!ehAppNativo()) return;
     let remover: (() => void) | undefined;
-    import("@capacitor/local-notifications").then(async ({ LocalNotifications }) => {
-      const h = await LocalNotifications.addListener("localNotificationActionPerformed", () => router.push("/inicio"));
-      remover = () => void h.remove();
-    });
+    LocalNotifications.addListener("localNotificationActionPerformed", () => router.push("/inicio"))
+      .then((h) => {
+        remover = () => void h.remove();
+      })
+      .catch(() => undefined);
     return () => remover?.();
   }, [router]);
 
