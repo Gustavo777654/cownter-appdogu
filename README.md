@@ -203,7 +203,7 @@ src/
 ## Etapa 8 — App Android (APK) e notificações
 
 - O app Android (Capacitor) abre o Cownter publicado na web; depois do primeiro acesso funciona sem internet.
-- Avisos (sal, remédio, tarefas, desmama, estoque, aluguel) viram **notificações no celular**: um resumo por dia, no horário escolhido em Perfil (padrão 7h), agendado no aparelho (sem internet, app fechado). Há botão de notificação de teste.
+- Avisos (sal, remédio, tarefas, desmama, estoque, aluguel) viram **notificações no celular**: um resumo por dia, no horário escolhido em Perfil (padrão 7h), agendado no aparelho (sem internet, app fechado).
 - **Gerar o APK:** no GitHub, `Settings → Secrets and variables → Actions → Variables`, crie `COWNTER_URL` com o endereço da Vercel. Depois `Actions → Gerar APK Android → Run workflow`. O arquivo `Cownter.apk` aparece em **Releases**.
 - **Instalar:** baixe o APK no celular e permita "instalar de fontes desconhecidas".
 - O APK usa uma chave de teste fixa; para a Play Store será necessária uma chave de publicação própria (etapa futura).
