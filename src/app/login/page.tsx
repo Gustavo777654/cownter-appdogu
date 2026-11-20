@@ -3,18 +3,31 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Warning } from "@phosphor-icons/react";
-import { PrecisaCodigoErro, useAuth } from "@/contexts/AuthContext";
+import { lerAvisoDeLogin, PrecisaCodigoErro, useAuth } from "@/contexts/AuthContext";
 import { Logo } from "@/components/ui/Logo";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { contarRegistrosLocais, fazendaDoAparelho } from "@/lib/sync";
 import type { Fazenda } from "@/lib/types";
 
-type Passo = "conta" | "codigo" | "fazenda";
+type Passo = "conta" | "codigo" | "fazenda" | "recuperar" | "redefinir";
 type Modo = "entrar" | "criar";
 type FazendaModo = "nova" | "codigo";
 
 export default function LoginPage() {
-  const { entrar, criarConta, confirmarCodigo, reenviarCodigo, criarFazenda, entrarComCodigo, concluir, sessaoAberta, isAuthenticated, isLoading } = useAuth();
+  const {
+    entrar,
+    criarConta,
+    confirmarCodigo,
+    reenviarCodigo,
+    criarFazenda,
+    entrarComCodigo,
+    concluir,
+    sessaoAberta,
+    pedirCodigoSenha,
+    redefinirSenha,
+    isAuthenticated,
+    isLoading,
+  } = useAuth();
   const router = useRouter();
   const [passo, setPasso] = useState<Passo>("conta");
   const [modo, setModo] = useState<Modo>("entrar");
@@ -28,7 +41,16 @@ export default function LoginPage() {
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
   const [ocupado, setOcupado] = useState(false);
+  const [codigoSenha, setCodigoSenha] = useState("");
+  const [novaSenha, setNovaSenha] = useState("");
+  const [novaSenha2, setNovaSenha2] = useState("");
   const [pendente, setPendente] = useState<{ fazenda: Fazenda; nome: string; email: string } | null>(null);
+
+  // Recado deixado ao sair sozinho (ex.: removido da fazenda).
+  useEffect(() => {
+    const a = lerAvisoDeLogin();
+    if (a) setAviso(a);
+  }, []);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) router.replace("/inicio");
@@ -111,6 +133,57 @@ export default function LoginPage() {
     }
   }
 
+  async function enviarPedidoSenha(e: React.FormEvent) {
+    e.preventDefault();
+    setErro("");
+    setOcupado(true);
+    try {
+      await pedirCodigoSenha(email);
+      setAviso(`Se existir uma conta com ${email.trim()}, enviamos um código para esse e-mail.`);
+      setCodigoSenha("");
+      setNovaSenha("");
+      setNovaSenha2("");
+      setPasso("redefinir");
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Não foi possível enviar o código.");
+    }
+    setOcupado(false);
+  }
+
+  async function enviarNovaSenha(e: React.FormEvent) {
+    e.preventDefault();
+    setErro("");
+    if (novaSenha !== novaSenha2) {
+      setErro("As duas senhas não são iguais.");
+      return;
+    }
+    setOcupado(true);
+    try {
+      const r = await redefinirSenha(email, codigoSenha, novaSenha);
+      setNome(r.nome);
+      setAviso("");
+      setSenha("");
+      if (r.fazenda) await finalizar(r.fazenda, r.nome, email.trim());
+      else {
+        setPasso("fazenda");
+        setOcupado(false);
+      }
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Não foi possível redefinir a senha.");
+      setOcupado(false);
+    }
+  }
+
+  async function pedirOutroCodigoSenha() {
+    setErro("");
+    try {
+      await pedirCodigoSenha(email);
+      setAviso("Enviamos um novo código. O anterior deixou de valer.");
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Não foi possível reenviar.");
+    }
+  }
+
   async function enviarFazenda(e: React.FormEvent) {
     e.preventDefault();
     setErro("");
@@ -186,7 +259,101 @@ export default function LoginPage() {
           <button type="submit" disabled={ocupado} className="btn-primary w-full">
             {ocupado ? "Aguarde..." : modo === "entrar" ? "Entrar" : "Criar conta"}
           </button>
+          {modo === "entrar" && (
+            <button
+              type="button"
+              id="btn-esqueci-senha"
+              onClick={() => {
+                setErro("");
+                setAviso("");
+                setPasso("recuperar");
+              }}
+              className="btn-ghost w-full text-sm"
+            >
+              Esqueci minha senha
+            </button>
+          )}
           <p className="text-center text-xs text-dark/50">Na primeira vez é preciso internet. Depois o app abre e funciona sem sinal.</p>
+        </form>
+      ) : passo === "recuperar" ? (
+        <form onSubmit={enviarPedidoSenha} className="space-y-4">
+          <p className="text-center text-base font-semibold text-dark">Recuperar a senha</p>
+          <p className="text-center text-sm text-dark/60">Digite o e-mail da sua conta. Enviaremos um código para você criar uma senha nova.</p>
+          {erro && <Mensagem tipo="erro">{erro}</Mensagem>}
+          <div>
+            <label htmlFor="email-recuperar" className="field-label">
+              E-mail
+            </label>
+            <input id="email-recuperar" type="email" inputMode="email" autoComplete="email" className="field" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" required />
+          </div>
+          <button type="submit" disabled={ocupado} className="btn-primary w-full">
+            {ocupado ? "Aguarde..." : "Enviar código"}
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setPasso("conta");
+              setErro("");
+            }}
+            className="btn-ghost w-full text-sm"
+          >
+            Voltar
+          </button>
+        </form>
+      ) : passo === "redefinir" ? (
+        <form onSubmit={enviarNovaSenha} className="space-y-4">
+          <p className="text-center text-base font-semibold text-dark">Criar uma senha nova</p>
+          {erro && <Mensagem tipo="erro">{erro}</Mensagem>}
+          {aviso && <Mensagem tipo="aviso">{aviso}</Mensagem>}
+          <div>
+            <label htmlFor="codigo-senha" className="field-label">
+              Código enviado para o e-mail
+            </label>
+            <input
+              id="codigo-senha"
+              className="field text-center font-mono text-2xl tracking-[0.5em]"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={8}
+              value={codigoSenha}
+              onChange={(e) => setCodigoSenha(e.target.value.replace(/[^0-9]/g, ""))}
+              placeholder="000000"
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="nova-senha" className="field-label">
+              Senha nova
+            </label>
+            <input id="nova-senha" type="password" autoComplete="new-password" className="field" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} placeholder="Mínimo de 6 caracteres" minLength={6} required />
+          </div>
+          <div>
+            <label htmlFor="nova-senha2" className="field-label">
+              Repita a senha nova
+            </label>
+            <input id="nova-senha2" type="password" autoComplete="new-password" className="field" value={novaSenha2} onChange={(e) => setNovaSenha2(e.target.value)} minLength={6} required />
+          </div>
+          <button type="submit" disabled={ocupado || codigoSenha.length < 6} className="btn-primary w-full">
+            {ocupado ? "Aguarde..." : "Salvar senha e entrar"}
+          </button>
+          <button type="button" onClick={pedirOutroCodigoSenha} className="btn-ghost w-full text-sm">
+            Enviar um novo código
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setPasso("conta");
+              setErro("");
+              setAviso("");
+            }}
+            className="btn-ghost w-full text-sm"
+          >
+            Voltar
+          </button>
         </form>
       ) : passo === "codigo" ? (
         <form onSubmit={enviarCodigoEmail} className="space-y-4">

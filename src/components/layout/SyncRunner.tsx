@@ -10,7 +10,7 @@ const ESPERA_APOS_MUDANCA_MS = 2_000;
 
 /** Mantém o aparelho sincronizado com a nuvem enquanto o app está aberto e há internet. */
 export function SyncRunner() {
-  const { user, nuvem } = useAuth();
+  const { user, nuvem, verificarVinculo } = useAuth();
   const online = useOnline();
   const pendentes = usePendentesSync();
   const fazendaId = user?.fazendaId;
@@ -22,7 +22,12 @@ export function SyncRunner() {
   useEffect(() => {
     if (!ativo) return;
     const rodar = () => {
-      if (idRef.current) void sincronizar(idRef.current);
+      const id = idRef.current;
+      if (!id) return;
+      // Antes de sincronizar, confere se a conta ainda faz parte da fazenda.
+      void verificarVinculo().then((ok) => {
+        if (ok) void sincronizar(id);
+      });
     };
     rodar();
     const timer = window.setInterval(rodar, INTERVALO_MS);
@@ -34,7 +39,7 @@ export function SyncRunner() {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", aoVoltar);
     };
-  }, [ativo]);
+  }, [ativo, verificarVinculo]);
 
   // Logo depois de qualquer alteração feita no aparelho.
   useEffect(() => {
