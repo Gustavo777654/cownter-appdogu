@@ -30,7 +30,7 @@ export default function ContaPage() {
   const [msgMembros, setMsgMembros] = useState<Msg>(null);
   const [remover, setRemover] = useState<Membro | null>(null);
 
-  const [excluindo, setExcluindo] = useState(false);
+  const [excluindo, setExcluindo] = useState<0 | 1 | 2>(0); // 1 = "tem certeza?", 2 = senha
   const [senhaExcluir, setSenhaExcluir] = useState("");
   const [erroExcluir, setErroExcluir] = useState("");
   const [ocupado, setOcupado] = useState(false);
@@ -116,6 +116,10 @@ export default function ContaPage() {
 
   async function confirmarExclusao() {
     setErroExcluir("");
+    if (!senhaExcluir) {
+      setErroExcluir("Digite a sua senha.");
+      return;
+    }
     try {
       await excluirConta(senhaExcluir);
       router.replace("/login");
@@ -239,26 +243,28 @@ export default function ContaPage() {
               {dono && <p className="text-xs text-dark/55">Quem for removido perde o acesso aos dados da fazenda, mas pode voltar se receber o código de convite de novo.</p>}
             </div>
 
-            {dono && (
-              <div className="card space-y-3 border-red-200">
-                <p className="text-xs text-red-700">Zona de perigo</p>
-                <p className="text-sm text-dark/70">Excluir a conta apaga a fazenda com todos os dados (rebanho, pastos, finanças) para todos os participantes. Não dá para desfazer.</p>
-                <button
-                  type="button"
-                  id="btn-excluir-conta"
-                  onClick={() => {
-                    setSenhaExcluir("");
-                    setErroExcluir("");
-                    setExcluindo(true);
-                  }}
-                  disabled={!online}
-                  className="btn-danger w-full"
-                >
-                  <Trash size={20} />
-                  Excluir minha conta e a fazenda
-                </button>
-              </div>
-            )}
+            <div className="card space-y-3 border-red-200">
+              <p className="text-xs text-red-700">Zona de perigo</p>
+              <p className="text-sm text-dark/70">
+                {dono
+                  ? "Excluir a conta apaga a fazenda com todos os dados (rebanho, pastos, finanças) para todos os participantes. Não dá para desfazer."
+                  : "Excluir a conta apaga o seu acesso e os seus dados de login. A fazenda e os dados dela continuam para os outros participantes. Não dá para desfazer."}
+              </p>
+              <button
+                type="button"
+                id="btn-excluir-conta"
+                onClick={() => {
+                  setSenhaExcluir("");
+                  setErroExcluir("");
+                  setExcluindo(1);
+                }}
+                disabled={!online}
+                className="btn-danger w-full"
+              >
+                <Trash size={20} />
+                {dono ? "Excluir minha conta e a fazenda" : "Excluir minha conta"}
+              </button>
+            </div>
           </>
         )}
       </div>
@@ -269,10 +275,27 @@ export default function ContaPage() {
         </p>
       </ConfirmSheet>
 
-      <ConfirmSheet open={excluindo} title="Excluir conta e fazenda?" confirmLabel="Excluir para sempre" onClose={() => setExcluindo(false)} onConfirm={confirmarExclusao}>
-        <p className="text-sm text-dark/70">
-          Todos os dados da fazenda <strong>{user?.farm}</strong> serão apagados da nuvem e deste aparelho, e a sua conta deixa de existir. Digite a sua senha para confirmar.
-        </p>
+      <ConfirmSheet
+        open={excluindo === 1}
+        title="Tem certeza?"
+        confirmLabel="Sim, continuar"
+        onClose={() => setExcluindo(0)}
+        onConfirm={() => setExcluindo(2)}
+      >
+        {dono ? (
+          <p className="text-sm text-dark/70">
+            Você vai apagar a fazenda <strong>{user?.farm}</strong> e <strong>todos os dados dela</strong> (rebanho, pastos, recursos, finanças) da nuvem e deste aparelho
+            {membros.length > 1 ? `. As outras ${membros.length - 1} pessoa(s) da fazenda também perdem o acesso` : ""}. A sua conta deixa de existir e <strong>não dá para desfazer</strong>.
+          </p>
+        ) : (
+          <p className="text-sm text-dark/70">
+            Você vai apagar a sua conta e os dados deste aparelho. A fazenda <strong>{user?.farm}</strong> continua com os outros participantes. Isso <strong>não dá para desfazer</strong>.
+          </p>
+        )}
+      </ConfirmSheet>
+
+      <ConfirmSheet open={excluindo === 2} title="Confirme com a sua senha" confirmLabel="Excluir para sempre" onClose={() => setExcluindo(0)} onConfirm={confirmarExclusao}>
+        <p className="text-sm text-dark/70">Digite a senha da sua conta para confirmar a exclusão.</p>
         <label htmlFor="senha-excluir" className="field-label mt-3 block">
           Sua senha
         </label>
