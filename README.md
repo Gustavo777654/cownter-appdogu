@@ -214,5 +214,5 @@ src/
 - **Esqueci minha senha** (tela de entrada): código de 6 dígitos por e-mail, senha nova e entrada direta. Exige editar o modelo **Reset password** no Supabase (Authentication > Emails) para mostrar `{{ .Token }}`, como foi feito no "Confirm signup".
 - **Perfil > Minha conta**: trocar nome, nome da fazenda (só o dono), trocar senha (pede a atual), ver e remover membros (dono) e excluir a conta e a fazenda (dono, pede a senha).
 - Quem é removido (ou cuja fazenda foi excluída) sai sozinho do app na próxima verificação com internet, com um aviso na tela de entrada; os dados do aparelho dele são apagados.
-- **Banco:** rode de novo o `supabase/schema.sql` inteiro no SQL Editor (é seguro repetir). Foram adicionadas as funções `atualizar_meu_nome`, `renomear_fazenda`, `listar_membros`, `remover_membro` e `excluir_fazenda_e_conta`.
+- **Banco:** rode de novo o `supabase/schema.sql` inteiro no SQL Editor (é seguro repetir). Foram adicionadas as funções `atualizar_meu_nome`, `renomear_fazenda`, `listar_membros`, `remover_membro` e `excluir_fazenda_e_conta` e `excluir_minha_conta` (membro que não é dono apaga só a própria conta).
 - Testes: 116 unitários + roteiros e2e (e2e11 cobre esta etapa); o SQL foi validado em um Postgres de teste (PGlite).

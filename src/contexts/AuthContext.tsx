@@ -310,7 +310,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!user) throw new Error("Entre na sua conta primeiro.");
       const { error } = await supabase().auth.signInWithPassword({ email: user.email, password: senha });
       if (error) throw /invalid login credentials/i.test(error.message) ? new Error("A senha está incorreta.") : traduzirAuth(error);
-      const { error: e2 } = await supabase().rpc("excluir_fazenda_e_conta");
+      const { error: e2 } = await supabase().rpc(user.papel === "dono" ? "excluir_fazenda_e_conta" : "excluir_minha_conta");
       if (e2) throw traduzirAuth(e2);
       await supabase().auth.signOut({ scope: "local" }).catch(() => undefined);
       await limparDadosLocais();

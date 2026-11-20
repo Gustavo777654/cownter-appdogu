@@ -246,3 +246,20 @@ revoke all on function public.atualizar_meu_nome(text), public.renomear_fazenda(
   public.remover_membro(uuid), public.excluir_fazenda_e_conta() from public, anon;
 grant execute on function public.atualizar_meu_nome(text), public.renomear_fazenda(text), public.listar_membros(),
   public.remover_membro(uuid), public.excluir_fazenda_e_conta() to authenticated;
+
+-- Apaga só a conta de quem não é dono (a fazenda e os dados dela continuam para os outros).
+-- O dono usa excluir_fazenda_e_conta(), que apaga tudo.
+create or replace function public.excluir_minha_conta()
+returns void language plpgsql security definer set search_path = public, auth
+as $$
+begin
+  if auth.uid() is null then raise exception 'Entre na sua conta primeiro.'; end if;
+  if exists (select 1 from public.membros where user_id = auth.uid() and papel = 'dono') then
+    raise exception 'O dono da fazenda exclui a conta pela opção que também apaga a fazenda.';
+  end if;
+  delete from public.membros where user_id = auth.uid();
+  delete from auth.users where id = auth.uid();
+end $$;
+
+revoke all on function public.excluir_minha_conta() from public, anon;
+grant execute on function public.excluir_minha_conta() to authenticated;
