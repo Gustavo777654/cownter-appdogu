@@ -98,6 +98,8 @@ function traduzirAuth(e: unknown): Error {
   if (/email not confirmed/i.test(msg)) return new Error("Confirme seu e-mail pelo link que enviamos e tente entrar de novo.");
   if (/already registered|already been registered/i.test(msg)) return new Error("Já existe uma conta com este e-mail. Use Entrar.");
   if (/password should be at least|weak password/i.test(msg)) return new Error("A senha precisa ter pelo menos 6 caracteres.");
+  const espera = msg.match(/after (\d+) seconds?/i);
+  if (espera) return new Error(`Por segurança, aguarde ${espera[1]} segundos para pedir outro código.`);
   if (/rate limit|too many/i.test(msg)) return new Error("Muitas tentativas. Aguarde alguns minutos e tente de novo.");
   if (/different from the old password|same password/i.test(msg)) return new Error("A senha nova precisa ser diferente da atual.");
   if (/token has expired|otp_expired|invalid.*token|token.*invalid/i.test(msg)) return new Error("Código incorreto ou vencido. Peça um novo código.");
