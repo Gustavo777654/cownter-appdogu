@@ -216,3 +216,11 @@ src/
 - Quem é removido (ou cuja fazenda foi excluída) sai sozinho do app na próxima verificação com internet, com um aviso na tela de entrada; os dados do aparelho dele são apagados.
 - **Banco:** rode de novo o `supabase/schema.sql` inteiro no SQL Editor (é seguro repetir). Foram adicionadas as funções `atualizar_meu_nome`, `renomear_fazenda`, `listar_membros`, `remover_membro` e `excluir_fazenda_e_conta` e `excluir_minha_conta` (membro que não é dono apaga só a própria conta).
 - Testes: 116 unitários + roteiros e2e (e2e11 cobre esta etapa); o SQL foi validado em um Postgres de teste (PGlite).
+
+## Pagamento do aluguel de pasto
+
+- Na tela do pasto alugado, a lista **Pagamentos** mostra cada mês (vencimento e valor). Em cada um: **Marcar como pago** (com a data do pagamento, que não pode ser no futuro) e **Desfazer**.
+- O Início mostra **Aluguel a pagar** a partir do vencimento de cada mês, até a parcela ser marcada como paga (um aviso por pasto, com a quantidade de meses em aberto). O aviso de fim do aluguel continua. O mesmo aviso vira notificação no celular.
+- Em Finanças a despesa continua no mês do vencimento; a data do pagamento é só informação.
+- Os pagamentos ficam dentro do aluguel do pasto (`aluguel.pagamentos`, por número da parcela), sincronizam com a nuvem e não são apagados ao editar o pasto.
+- Testes: 120 unitários; roteiro e2e12.

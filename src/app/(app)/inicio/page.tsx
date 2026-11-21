@@ -154,7 +154,10 @@ export default function InicioPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-bold text-dark">{a.titulo}</p>
-                      <p className="truncate text-sm text-dark/60">{a.pastoNome}</p>
+                      <p className="truncate text-sm text-dark/60">
+                        {a.pastoNome}
+                        {a.tipo === "pagar" && a.emAberto && a.emAberto > 1 ? ` · ${a.emAberto} meses em aberto` : ""}
+                      </p>
                     </div>
                     <PrazoBadge dias={a.dias} />
                     <CaretRight size={18} className="shrink-0 text-dark/30" />
