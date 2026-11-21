@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { desfazerPagamento, registrarPagamento } from "./aluguel";
 import { ROTINAS, type TipoRotina } from "./rotinas";
 import type { AluguelPasto, Pasto, PastoInput, Nota, SituacaoPasto, Tarefa, NivelPasto } from "./types";
 import { hoje, uuid } from "./utils";
@@ -31,7 +32,11 @@ function limparAluguel(a: AluguelPasto | null | undefined): AluguelPasto | null 
     }
     return { desde: r.desde, valorMensal: Math.round(r.valorMensal * 100) / 100 };
   });
-  return { valorMensal: Math.round(a.valorMensal * 100) / 100, inicio: a.inicio, meses: a.meses, reajustes };
+  const pagamentos: Record<string, string> = {};
+  for (const [k, v] of Object.entries(a.pagamentos ?? {})) {
+    if (/^\d+$/.test(k) && /^\d{4}-\d{2}-\d{2}$/.test(v)) pagamentos[k] = v;
+  }
+  return { valorMensal: Math.round(a.valorMensal * 100) / 100, inicio: a.inicio, meses: a.meses, reajustes, pagamentos };
 }
 
 function limparPasto(input: PastoInput): PastoInput {
@@ -87,6 +92,28 @@ export async function atualizarPasto(id: string, input: PastoInput): Promise<voi
   await db.pastos.update(id, {
     ...dados,
     nivelEm: dados.nivelPasto !== atual.nivelPasto ? hoje() : atual.nivelEm,
+    updatedAt: agora(),
+    syncStatus: "pending",
+  });
+}
+
+/** Marca uma parcela do aluguel como paga, com a data do pagamento. */
+export async function marcarAluguelPago(pastoId: string, indice: number, pagoEm: string): Promise<void> {
+  const atual = await pastoPorId(pastoId);
+  if (!atual.aluguel) throw new Error("Este pasto não está marcado como alugado.");
+  await db.pastos.update(pastoId, {
+    aluguel: registrarPagamento(atual.aluguel, indice, pagoEm, hoje()),
+    updatedAt: agora(),
+    syncStatus: "pending",
+  });
+}
+
+/** Desfaz o pagamento de uma parcela (volta a ficar em aberto). */
+export async function desmarcarAluguelPago(pastoId: string, indice: number): Promise<void> {
+  const atual = await pastoPorId(pastoId);
+  if (!atual.aluguel) throw new Error("Este pasto não está marcado como alugado.");
+  await db.pastos.update(pastoId, {
+    aluguel: desfazerPagamento(atual.aluguel, indice),
     updatedAt: agora(),
     syncStatus: "pending",
   });

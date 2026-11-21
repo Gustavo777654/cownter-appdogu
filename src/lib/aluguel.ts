@@ -45,6 +45,45 @@ export function parcelasAteHoje(a: AluguelPasto, hojeIso: string): string[] {
   return datas;
 }
 
+/** Situação de cada parcela mensal do aluguel (do início ao fim, inclusive as futuras). */
+export interface StatusParcela {
+  indice: number;
+  vencimento: string;
+  valor: number;
+  pagoEm: string | null;
+}
+
+export function parcelasDoAluguel(a: AluguelPasto): StatusParcela[] {
+  const lista: StatusParcela[] = [];
+  for (let k = 0; k < mesesDoAluguel(a); k++) {
+    const vencimento = addMeses(a.inicio, k);
+    if (!vencimento) break;
+    lista.push({ indice: k, vencimento, valor: valorDaParcela(a, vencimento), pagoEm: a.pagamentos?.[String(k)] ?? null });
+  }
+  return lista;
+}
+
+/** Parcelas que já venceram (ou vencem hoje) e ainda não foram pagas. */
+export function parcelasEmAberto(a: AluguelPasto, hojeIso: string): StatusParcela[] {
+  return parcelasDoAluguel(a).filter((p) => p.vencimento <= hojeIso && !p.pagoEm);
+}
+
+const DATA = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Marca a parcela como paga na data informada (não pode ser no futuro). */
+export function registrarPagamento(a: AluguelPasto, indice: number, pagoEm: string, hojeIso: string): AluguelPasto {
+  if (!Number.isInteger(indice) || indice < 0 || indice >= mesesDoAluguel(a)) throw new Error("Parcela do aluguel não encontrada.");
+  if (!DATA.test(pagoEm)) throw new Error("Informe a data do pagamento.");
+  if (pagoEm > hojeIso) throw new Error("A data do pagamento não pode ser no futuro.");
+  return { ...a, pagamentos: { ...(a.pagamentos ?? {}), [String(indice)]: pagoEm } };
+}
+
+export function desfazerPagamento(a: AluguelPasto, indice: number): AluguelPasto {
+  const resto = { ...(a.pagamentos ?? {}) };
+  delete resto[String(indice)];
+  return { ...a, pagamentos: resto };
+}
+
 export interface ParcelaAluguel {
   pastoId: string;
   pastoNome: string;
@@ -72,11 +111,14 @@ export interface AlertaAluguel {
   pastoNome: string;
   titulo: string;
   fim: string;
-  /** Dias até o fim (negativo = já venceu). */
+  /** Dias até o fim (negativo = já venceu). Em "pagar": dias desde o vencimento mais antigo em aberto. */
   dias: number;
+  tipo: "fim" | "pagar";
+  /** Só em "pagar": quantas parcelas estão em aberto. */
+  emAberto?: number;
 }
 
-/** Aluguéis que terminam em até 7 dias ou já terminaram. */
+/** Aluguéis que terminam em até 7 dias ou já terminaram, e parcelas vencidas ainda não pagas. */
 export function coletarAlertasAluguel(
   pastos: Pick<Pasto, "id" | "nome" | "aluguel" | "deletedAt">[],
   hojeIso: string,
@@ -85,6 +127,22 @@ export function coletarAlertasAluguel(
   const alertas: AlertaAluguel[] = [];
   for (const p of pastos) {
     if (p.deletedAt || !p.aluguel) continue;
+    const abertas = parcelasEmAberto(p.aluguel, hojeIso);
+    if (abertas.length > 0) {
+      const dias = diasEntre(hojeIso, abertas[0].vencimento);
+      if (dias !== null) {
+        alertas.push({
+          chave: `aluguel-pagar:${p.id}`,
+          pastoId: p.id,
+          pastoNome: p.nome,
+          titulo: "Aluguel a pagar",
+          fim: abertas[0].vencimento,
+          dias,
+          tipo: "pagar",
+          emAberto: abertas.length,
+        });
+      }
+    }
     const fim = fimDoAluguel(p.aluguel);
     if (!fim) continue;
     const dias = diasEntre(hojeIso, fim);
@@ -96,6 +154,7 @@ export function coletarAlertasAluguel(
       titulo: dias < 0 ? "Aluguel venceu" : "Aluguel termina",
       fim,
       dias,
+      tipo: "fim",
     });
   }
   return alertas.sort((a, b) => a.dias - b.dias);
