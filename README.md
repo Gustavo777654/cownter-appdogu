@@ -224,3 +224,11 @@ src/
 - Em Finanças a despesa continua no mês do vencimento; a data do pagamento é só informação.
 - Os pagamentos ficam dentro do aluguel do pasto (`aluguel.pagamentos`, por número da parcela), sincronizam com a nuvem e não são apagados ao editar o pasto.
 - Testes: 120 unitários; roteiro e2e12.
+
+## Preço de compra do gado que já era da fazenda
+
+- Lotes sem preço de compra aparecem com o aviso **Sem preço de compra** (lista de gado, pasto e Início) e um alerta "N lotes sem preço de compra" no Início.
+- Na tela do lote, **Informar preço de compra**: valor total, por cabeça ou por arroba, data da compra (pode ser aproximada) e quantas cabeças o valor cobre. Gado nascido na fazenda é marcado como **Nasceu aqui** (custo zero).
+- O valor vira uma compra com data passada (saída em Finanças naquele dia) **sem mexer nas cabeças do lote**.
+- Ao vender, Finanças mostra o custo médio por cabeça, o lucro de cada venda e o card **Resultado das vendas**; vendas de lote sem preço ficam de fora e são contadas.
+- Sem mudança no Supabase: os campos seguem pela sincronização genérica.

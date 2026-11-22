@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { lerConfiguracao, type Configuracao } from "./config";
 import type { DadosFinanceiros } from "./resumoFinanceiro";
+import { custosPorLote, lotesSemPreco, type CustoLote } from "./custoGado";
 import { db } from "./db";
 import type { Cabeca, CompraRecurso, LoteGado, Movimentacao, Nota, Parto, Pasto, Recurso, Tarefa, TipoRecurso, UsoRecurso } from "./types";
 
@@ -204,4 +205,28 @@ export function useDadosFinanceiros(): (DadosFinanceiros & { movimentacoes: Movi
     ]);
     return { movimentacoes, comprasRecurso, usosRecurso, recursos, pastos };
   }, []);
+}
+
+/** Lotes (não excluídos) que ainda não têm preço de compra e não são "nascidos na fazenda". */
+export function useLotesSemPreco(): LoteGado[] | undefined {
+  return useLiveQuery(async () => {
+    const [lotes, movs] = await Promise.all([
+      db.lotesGado.filter((l) => !l.deletedAt).toArray(),
+      db.movimentacoes.filter((m) => !m.deletedAt && m.tipo === "Compra").toArray(),
+    ]);
+    return lotesSemPreco(lotes, movs);
+  }, []);
+}
+
+/** Custo de compra dos lotes: id do lote → { valor, cabecas } (só lotes com compra lançada). */
+export function useCustosDosLotes(): Map<string, CustoLote> | undefined {
+  return useLiveQuery(async () => {
+    const movs = await db.movimentacoes.filter((m) => !m.deletedAt && m.tipo === "Compra").toArray();
+    return custosPorLote(movs);
+  }, []);
+}
+
+/** Todos os lotes, inclusive os excluídos/vendidos (para calcular o resultado de vendas antigas). */
+export function useTodosLotes(): LoteGado[] | undefined {
+  return useLiveQuery(() => db.lotesGado.toArray(), []);
 }

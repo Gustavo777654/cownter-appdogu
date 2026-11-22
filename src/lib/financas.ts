@@ -244,6 +244,50 @@ export async function registrarCompra(input: CompraInput): Promise<{ movimentaca
 }
 
 // ---------------------------------------------------------------------------
+// Preço de compra do gado que já era da fazenda (lançado depois)
+// ---------------------------------------------------------------------------
+
+export interface CustoAquisicaoInput {
+  loteId: string;
+  /** Quando o gado foi comprado (pode ser aproximada). */
+  data: string;
+  valor: ValorInput;
+  /** Quantas cabeças do lote esse valor cobre. */
+  cabecas: number;
+  vendedor?: string;
+}
+
+/**
+ * Lança o que foi pago pelo gado que já estava no lote: cria uma compra com a data passada,
+ * SEM mexer nas cabeças do lote (elas já existem). Aparece como saída em Finanças naquela data.
+ */
+export async function registrarCustoAquisicao(input: CustoAquisicaoInput): Promise<Movimentacao> {
+  validarData(input.data);
+  if (!Number.isInteger(input.cabecas) || input.cabecas <= 0) throw new Error("Informe quantas cabeças esse valor cobre.");
+  const { valor, precoArroba, arrobas } = calcularValor(input.valor, input.cabecas);
+  const vendedor = texto(input.vendedor ?? "", 80, "O nome do vendedor");
+
+  return db.transaction("rw", db.lotesGado, db.movimentacoes, async () => {
+    const lote = await loteGadoPorId(input.loteId);
+    if (input.cabecas > totalCabecas(lote.composicao)) throw new Error("O valor não pode cobrir mais cabeças do que o lote tem.");
+    const mov = nova({
+      tipo: "Compra", data: input.data, valor, descricao: `${input.cabecas} ${input.cabecas === 1 ? "cabeça" : "cabeças"} (já era da fazenda)`,
+      categoria: "", pastoId: lote.pastoId, loteGadoId: lote.id, loteNome: lote.nome, cabecas: input.cabecas,
+      precoArroba, arrobas, contraparte: vendedor, observacoes: "Preço lançado depois, de gado que já estava na fazenda.",
+    });
+    await db.movimentacoes.add(mov);
+    await db.lotesGado.update(lote.id, { nascidoNaFazenda: false, updatedAt: agora(), syncStatus: "pending" });
+    return mov;
+  });
+}
+
+/** Marca (ou desmarca) o lote como gado nascido na fazenda: sem preço de compra, custo zero. */
+export async function marcarNascidoNaFazenda(loteId: string, nascido: boolean): Promise<void> {
+  const lote = await loteGadoPorId(loteId);
+  await db.lotesGado.update(lote.id, { nascidoNaFazenda: nascido, updatedAt: agora(), syncStatus: "pending" });
+}
+
+// ---------------------------------------------------------------------------
 // Despesas lançadas à mão
 // ---------------------------------------------------------------------------
 

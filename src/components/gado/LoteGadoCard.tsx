@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CaretRight, Cow, Plant, Tag } from "@phosphor-icons/react";
+import { CaretRight, Cow, Plant, Tag, WarningCircle } from "@phosphor-icons/react";
 import { descreverCabecas, resumoComposicao, totalCabecas } from "@/lib/composicao";
 import type { LoteGado } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -9,9 +9,11 @@ interface LoteGadoCardProps {
   /** Nome do pasto onde o lote está (null = sem pasto). Omita para esconder a linha do pasto. */
   pastoNome?: string | null;
   mostrarPasto?: boolean;
+  /** Mostra o aviso "Sem preço de compra". */
+  semPreco?: boolean;
 }
 
-export function LoteGadoCard({ lote, pastoNome = null, mostrarPasto = true }: LoteGadoCardProps) {
+export function LoteGadoCard({ lote, pastoNome = null, mostrarPasto = true, semPreco = false }: LoteGadoCardProps) {
   const venda = lote.situacao === "Separado para venda";
   const total = totalCabecas(lote.composicao);
 
@@ -46,6 +48,12 @@ export function LoteGadoCard({ lote, pastoNome = null, mostrarPasto = true }: Lo
               <span className="inline-flex items-center gap-1.5">
                 <Plant size={16} className="text-brand-700" />
                 {pastoNome ?? "Sem pasto"}
+              </span>
+            )}
+            {semPreco && (
+              <span className="inline-flex items-center gap-1.5 font-semibold text-amber-800">
+                <WarningCircle size={16} />
+                Sem preço de compra
               </span>
             )}
             {venda && (

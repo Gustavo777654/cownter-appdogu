@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Cow, MagnifyingGlass, Plus } from "@phosphor-icons/react";
 import { descreverCabecas, totalDeLotes } from "@/lib/composicao";
 import { carregarDadosExemplo } from "@/lib/exemplo";
-import { useLotesGado, usePastos } from "@/lib/hooks";
+import { useLotesGado, useLotesSemPreco, usePastos } from "@/lib/hooks";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LoteGadoCard } from "@/components/gado/LoteGadoCard";
 import { LoteGadoFormSheet } from "@/components/gado/LoteGadoFormSheet";
@@ -14,6 +14,8 @@ import { LoteGadoFormSheet } from "@/components/gado/LoteGadoFormSheet";
 export default function GadoPage() {
   const { nuvem } = useAuth();
   const lotes = useLotesGado();
+  const semPreco = useLotesSemPreco();
+  const idsSemPreco = useMemo(() => new Set((semPreco ?? []).map((l) => l.id)), [semPreco]);
   const pastos = usePastos();
   const router = useRouter();
   const [busca, setBusca] = useState("");
@@ -95,7 +97,7 @@ export default function GadoPage() {
           <ul className="space-y-3">
             {filtrados.map((l) => (
               <li key={l.id}>
-                <LoteGadoCard lote={l} pastoNome={l.pastoId ? (nomesPastos.get(l.pastoId) ?? null) : null} />
+                <LoteGadoCard lote={l} semPreco={idsSemPreco.has(l.id)} pastoNome={l.pastoId ? (nomesPastos.get(l.pastoId) ?? null) : null} />
               </li>
             ))}
           </ul>
