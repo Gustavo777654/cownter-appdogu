@@ -16,11 +16,12 @@ import {
   Package,
   Plus,
   Tag,
+  WarningCircle,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { useAuth } from "@/contexts/AuthContext";
 import { descreverCabecas, totalDeLotes } from "@/lib/composicao";
-import { useConfiguracao, useLotesGado, usePartosAbertos, usePastos, useRecursos, useTarefasAbertas, useUsosRecurso } from "@/lib/hooks";
+import { useConfiguracao, useLotesGado, useLotesSemPreco, usePartosAbertos, usePastos, useRecursos, useTarefasAbertas, useUsosRecurso } from "@/lib/hooks";
 import { coletarAlertasEstoque } from "@/lib/estoque";
 import { coletarAlertasDesmama } from "@/lib/desmama";
 import { coletarAlertasAluguel } from "@/lib/aluguel";
@@ -62,6 +63,7 @@ const ICONE_ALERTA: Record<Alerta["tipo"], Icon> = {
 export default function InicioPage() {
   const { user } = useAuth();
   const lotes = useLotesGado();
+  const semPreco = useLotesSemPreco();
   const pastos = usePastos();
   const tarefas = useTarefasAbertas();
   const partos = usePartosAbertos();
@@ -113,7 +115,7 @@ export default function InicioPage() {
             )}
           </div>
 
-          {alertas && alertas.length === 0 && desmamas.length === 0 && estoque.length === 0 && alugueis.length === 0 ? (
+          {alertas && alertas.length === 0 && desmamas.length === 0 && estoque.length === 0 && alugueis.length === 0 && (semPreco?.length ?? 0) === 0 ? (
             <div className="card flex items-start gap-3 text-sm text-dark/60">
               <BellRinging size={22} className="mt-0.5 shrink-0 text-brand-700" />
               <p>
@@ -142,6 +144,22 @@ export default function InicioPage() {
                   </Link>
                 </li>
               ))}
+              {semPreco && semPreco.length > 0 && (
+                <li>
+                  <Link prefetch={false} href={semPreco.length === 1 ? `/lote?id=${semPreco[0].id}` : "/gado"} id="aviso-sem-preco" className="card flex items-center gap-3 p-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                      <WarningCircle size={22} weight="duotone" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-bold text-dark">
+                        {semPreco.length} {semPreco.length === 1 ? "lote sem preço de compra" : "lotes sem preço de compra"}
+                      </p>
+                      <p className="truncate text-sm text-dark/60">Informe o preço para Finanças mostrar o lucro</p>
+                    </div>
+                    <CaretRight size={18} className="shrink-0 text-dark/30" />
+                  </Link>
+                </li>
+              )}
               {alugueis.map((a) => (
                 <li key={a.chave}>
                   <Link prefetch={false} href={`/pasto?id=${a.pastoId}`} className="card flex items-center gap-3 p-3">
@@ -255,7 +273,7 @@ export default function InicioPage() {
             <ul className="space-y-2">
               {paraVenda.map((l) => (
                 <li key={l.id}>
-                  <LoteGadoCard lote={l} pastoNome={l.pastoId ? (nomesPastos.get(l.pastoId) ?? null) : null} />
+                  <LoteGadoCard lote={l} semPreco={(semPreco ?? []).some((x) => x.id === l.id)} pastoNome={l.pastoId ? (nomesPastos.get(l.pastoId) ?? null) : null} />
                 </li>
               ))}
             </ul>

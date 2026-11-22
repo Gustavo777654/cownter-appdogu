@@ -69,6 +69,8 @@ export interface LoteGado extends Sincronizavel {
   situacao: SituacaoLoteGado;
   vacinas: VacinaLote[];
   observacoes: string;
+  /** Gado que nasceu na fazenda: não tem preço de compra e não aparece como "sem preço". */
+  nascidoNaFazenda?: boolean;
 }
 
 export type LoteGadoInput = Omit<

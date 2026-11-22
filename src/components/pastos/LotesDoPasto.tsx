@@ -7,7 +7,7 @@ import { Erro } from "@/components/ui/Erro";
 import { descreverCabecas, totalCabecas, totalDeLotes } from "@/lib/composicao";
 import { formatDataBR, formatDesde } from "@/lib/utils";
 import { moverLoteGado } from "@/lib/gado";
-import { useLotesGado, usePastos } from "@/lib/hooks";
+import { useLotesGado, useLotesSemPreco, usePastos } from "@/lib/hooks";
 import type { LoteGado, Pasto } from "@/lib/types";
 import { LoteGadoCard } from "@/components/gado/LoteGadoCard";
 import { LoteGadoFormSheet } from "@/components/gado/LoteGadoFormSheet";
@@ -20,6 +20,7 @@ import { DestinoPastoSheet } from "./DestinoPastoSheet";
  */
 export function LotesDoPasto({ pasto }: { pasto: Pasto }) {
   const lotes = useLotesGado();
+  const semPreco = useLotesSemPreco();
   const pastos = usePastos();
   const [listando, setListando] = useState(false);
   const [trazendo, setTrazendo] = useState<LoteGado | null>(null);
@@ -69,7 +70,7 @@ export function LotesDoPasto({ pasto }: { pasto: Pasto }) {
         <ul className="space-y-2">
           {aqui.map((l) => (
             <li key={l.id}>
-              <LoteGadoCard lote={l} mostrarPasto={false} />
+              <LoteGadoCard lote={l} mostrarPasto={false} semPreco={(semPreco ?? []).some((x) => x.id === l.id)} />
             </li>
           ))}
         </ul>

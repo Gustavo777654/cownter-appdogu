@@ -16,7 +16,10 @@ import {
 } from "@phosphor-icons/react";
 import { descreverCabecas, totalCabecas } from "@/lib/composicao";
 import { atualizarLoteGado, excluirLoteGado } from "@/lib/gado";
-import { useLoteGado, usePasto } from "@/lib/hooks";
+import { useCustosDosLotes, useLoteGado, usePasto } from "@/lib/hooks";
+import { statusPreco } from "@/lib/custoGado";
+import { formatarReais } from "@/lib/recursos";
+import { PrecoCompraSheet } from "@/components/gado/PrecoCompraSheet";
 import type { LoteGado, LoteGadoInput } from "@/lib/types";
 import { cn, formatDataBR, formatPeso } from "@/lib/utils";
 import { CabecasSection } from "@/components/gado/CabecasSection";
@@ -55,6 +58,8 @@ export default function LotePage() {
   const [excluindo, setExcluindo] = useState(false);
   const [vendendo, setVendendo] = useState(false);
   const [vendeu, setVendeu] = useState(false);
+  const [precificando, setPrecificando] = useState(false);
+  const custos = useCustosDosLotes();
   const [erro, setErro] = useState("");
 
   useEffect(() => {
@@ -84,6 +89,8 @@ export default function LotePage() {
 
   const venda = lote.situacao === "Separado para venda";
   const total = totalCabecas(lote.composicao);
+  const custo = custos?.get(lote.id);
+  const status = statusPreco(lote, custos ?? new Map());
 
   async function alternarVenda() {
     if (!lote) return;
@@ -182,6 +189,39 @@ export default function LotePage() {
         </section>
 
         <section>
+          <h2 className="mb-3 text-xl font-bold text-dark">Preço de compra</h2>
+          <div className="card space-y-2 text-sm">
+            {status === "comprado" && custo ? (
+              <>
+                <p className="text-dark">
+                  Pago: <strong>{formatarReais(custo.valor)}</strong> por {custo.cabecas} {custo.cabecas === 1 ? "cabeça" : "cabeças"} ·{" "}
+                  {formatarReais(custo.porCabeca)} por cabeça
+                </p>
+                <button type="button" onClick={() => setPrecificando(true)} className="btn-secondary min-h-10 w-full text-sm">
+                  Informar outra compra
+                </button>
+              </>
+            ) : status === "nascido" ? (
+              <>
+                <p className="text-dark">Gado nascido na fazenda (custo zero).</p>
+                <button type="button" onClick={() => setPrecificando(true)} className="btn-secondary min-h-10 w-full text-sm">
+                  Informar preço de compra
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold text-amber-800">Este lote está sem preço de compra.</p>
+                <p className="text-dark/60">Sem ele, Finanças não mostra o que foi gasto no gado nem o lucro da venda.</p>
+                <button type="button" id="btn-preco-compra" onClick={() => setPrecificando(true)} className="btn-primary min-h-11 w-full text-sm">
+                  <CurrencyDollar size={18} weight="bold" />
+                  Informar preço de compra
+                </button>
+              </>
+            )}
+          </div>
+        </section>
+
+        <section>
           <h2 className="mb-3 text-xl font-bold text-dark">Composição</h2>
           <ul className="card divide-y divide-brand-100 p-0">
             {lote.composicao.map((l) => (
@@ -277,6 +317,7 @@ export default function LotePage() {
 
       <LoteGadoFormSheet open={editando} lote={lote} onClose={() => setEditando(false)} />
       <VenderSheet open={vendendo} loteIdInicial={lote.id} onClose={() => setVendendo(false)} onVendido={() => setVendeu(true)} />
+      <PrecoCompraSheet open={precificando} lote={lote} onClose={() => setPrecificando(false)} />
       <MoverCabecasSheet open={movendoCabecas} lote={lote} onClose={() => setMovendoCabecas(false)} />
       <DestinoPastoSheet open={movendo} lote={lote} onClose={() => setMovendo(false)} />
       <ConfirmSheet

@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Erro } from "@/components/ui/Erro";
 import { registrarVenda } from "@/lib/financas";
-import { useCabecas, useLotesGado, usePartosDoLote } from "@/lib/hooks";
+import { useCabecas, useCustosDosLotes, useLotesGado, usePartosDoLote } from "@/lib/hooks";
+import { statusPreco } from "@/lib/custoGado";
+import { formatarReais } from "@/lib/recursos";
 import { maximosMoviveis } from "@/lib/transferencia";
 import { hoje } from "@/lib/utils";
 import { ValorCampo, VALOR_VAZIO, lerValor, type ValorEstado } from "./ValorCampo";
@@ -22,6 +24,7 @@ export function VenderSheet({
   onVendido?: () => void;
 }) {
   const lotes = useLotesGado();
+  const custos = useCustosDosLotes();
   const [loteId, setLoteId] = useState("");
   const lote = lotes?.find((l) => l.id === loteId) ?? null;
   const cabecas = useCabecas(open && loteId ? loteId : null);
@@ -62,6 +65,8 @@ export function VenderSheet({
     quantidade: Math.max(0, Math.floor(Number(qtds[i] || 0)) || 0),
   }));
   const vendidas = itens.reduce((s, i) => s + i.quantidade, 0);
+  const custoLote = lote ? custos?.get(lote.id) : undefined;
+  const statusLote = lote && custos ? statusPreco(lote, custos) : null;
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
@@ -121,6 +126,16 @@ export function VenderSheet({
 
         {lote && (
           <>
+            {statusLote === "sem" && (
+              <p id="vd-sem-preco" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
+                Este lote está sem preço de compra, então o lucro desta venda não será calculado. Depois você pode informar o preço na tela do lote.
+              </p>
+            )}
+            {custoLote && vendidas > 0 && (
+              <p className="text-sm text-dark/70">
+                Custo estimado dessas cabeças: <strong>{formatarReais(custoLote.porCabeca * vendidas)}</strong>
+              </p>
+            )}
             <fieldset>
               <div className="mb-2 flex items-center justify-between gap-2">
                 <legend className="field-label mb-0">Quantas cabeças foram vendidas</legend>

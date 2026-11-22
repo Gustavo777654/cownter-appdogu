@@ -10,7 +10,8 @@ import { BarrasHorizontais, GraficoMeses, MESES_ABREV } from "@/components/finan
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { excluirMovimentacao } from "@/lib/financas";
-import { useDadosFinanceiros, usePastos } from "@/lib/hooks";
+import { useCustosDosLotes, useDadosFinanceiros, usePastos, useTodosLotes } from "@/lib/hooks";
+import { resultadoDaVenda, resultadoDasVendas } from "@/lib/custoGado";
 import { CAT_ALUGUEL, parcelasDeAluguel } from "@/lib/aluguel";
 import { formatarReais } from "@/lib/recursos";
 import { custoPorPasto, lancamentos, porMes, saidasPorCategoria, totais } from "@/lib/resumoFinanceiro";
@@ -22,6 +23,8 @@ const MESES_EXTENSO = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho
 export default function FinancasPage() {
   const dados = useDadosFinanceiros();
   const pastos = usePastos();
+  const todosLotes = useTodosLotes();
+  const custos = useCustosDosLotes();
   const anoAtual = Number(hoje().slice(0, 4));
   const [ano, setAno] = useState(anoAtual);
   const [mes, setMes] = useState<number | null>(null);
@@ -57,7 +60,7 @@ export default function FinancasPage() {
     if (!dados) return [];
     const nomeRec = new Map(dados.recursos.map((r) => [r.id, r.nome]));
     const noPeriodo = (data: string) => Number(data.slice(0, 4)) === ano && (mes === null || Number(data.slice(5, 7)) === mes);
-    const itens: { chave: string; data: string; criado: string; entrada: boolean; titulo: string; detalhe: string; valor: number; mov?: Movimentacao }[] = [];
+    const itens: { lucro?: number | null; chave: string; data: string; criado: string; entrada: boolean; titulo: string; detalhe: string; valor: number; mov?: Movimentacao }[] = [];
     for (const m of dados.movimentacoes) {
       if (!noPeriodo(m.data) || (pastoId && m.pastoId !== pastoId)) continue;
       const pasto = m.pastoId ? nomesPastos.get(m.pastoId) : undefined;
@@ -70,6 +73,7 @@ export default function FinancasPage() {
         detalhe: [m.tipo === "Despesa" ? m.categoria : m.loteNome, m.contraparte, pasto].filter(Boolean).join(" · "),
         valor: m.valor,
         mov: m,
+        lucro: m.tipo === "Venda" && todosLotes && custos ? resultadoDaVenda(m, todosLotes, custos).lucro : undefined,
       });
     }
     for (const a of parcelasDeAluguel(dados.pastos ?? [], hoje())) {
@@ -99,7 +103,19 @@ export default function FinancasPage() {
       }
     }
     return itens.sort((a, b) => b.data.localeCompare(a.data) || b.criado.localeCompare(a.criado));
-  }, [dados, ano, mes, pastoId, nomesPastos]);
+  }, [dados, ano, mes, pastoId, nomesPastos, todosLotes, custos]);
+
+  const vendasResultado = useMemo(() => {
+    if (!dados || !todosLotes || !custos) return null;
+    const vendas = (dados.movimentacoes as Movimentacao[]).filter(
+      (m) =>
+        m.tipo === "Venda" &&
+        Number(m.data.slice(0, 4)) === ano &&
+        (mes === null || Number(m.data.slice(5, 7)) === mes) &&
+        (!pastoId || m.pastoId === pastoId)
+    );
+    return vendas.length === 0 ? null : resultadoDasVendas(vendas, todosLotes, custos);
+  }, [dados, todosLotes, custos, ano, mes, pastoId]);
 
   const periodo = `${mes ? MESES_EXTENSO[mes - 1] + " de " : ""}${ano}`;
   const saldo = resumo?.totais.saldo ?? 0;
@@ -159,6 +175,23 @@ export default function FinancasPage() {
               <GraficoMeses dados={resumo.meses} />
             </section>
 
+            {vendasResultado && (
+              <section className="card" id="resultado-vendas">
+                <h2 className="mb-1 text-lg font-bold text-dark">Resultado das vendas · {periodo}</h2>
+                <p className="mb-3 text-sm text-dark/60">Venda menos o que foi pago pelo gado vendido.</p>
+                <dl className="space-y-1.5 text-sm">
+                  <div className="flex justify-between"><dt className="text-dark/60">Vendido</dt><dd className="font-semibold text-dark">{formatarReais(vendasResultado.receita)}</dd></div>
+                  <div className="flex justify-between"><dt className="text-dark/60">Custo do gado</dt><dd className="font-semibold text-dark">−{formatarReais(vendasResultado.custo)}</dd></div>
+                  <div className="flex justify-between border-t border-brand-100 pt-1.5 text-base"><dt className="font-bold text-dark">Lucro</dt><dd className={cn("font-bold", vendasResultado.lucro < 0 ? "text-red-600" : "text-brand-700")}>{formatarReais(vendasResultado.lucro)}</dd></div>
+                </dl>
+                {vendasResultado.semPreco > 0 && (
+                  <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
+                    {vendasResultado.semPreco} {vendasResultado.semPreco === 1 ? "venda ficou de fora" : "vendas ficaram de fora"} por não ter preço de compra do gado.
+                  </p>
+                )}
+              </section>
+            )}
+
             <section className="card">
               <h2 className="mb-3 text-lg font-bold text-dark">Onde o dinheiro saiu · {periodo}</h2>
               <BarrasHorizontais itens={resumo.categorias.map((c) => ({ rotulo: c.categoria, valor: c.valor }))} vazio="Nenhuma saída neste período." />
@@ -186,6 +219,7 @@ export default function FinancasPage() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-bold text-dark">{h.titulo}</p>
                         <p className="truncate text-sm text-dark/60">{formatDataBR(h.data)}{h.detalhe ? ` · ${h.detalhe}` : ""}</p>
+                        {h.lucro !== undefined && h.lucro !== null && <p className={cn("truncate text-xs font-semibold", h.lucro < 0 ? "text-red-600" : "text-brand-700")}>{h.lucro < 0 ? "Prejuízo" : "Lucro"} de {formatarReais(Math.abs(h.lucro))}</p>}
                       </div>
                       <p className="shrink-0 font-bold text-dark">{h.entrada ? "+" : "−"}{formatarReais(h.valor)}</p>
                       {h.mov && (
