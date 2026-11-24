@@ -232,3 +232,9 @@ src/
 - O valor vira uma compra com data passada (saída em Finanças naquele dia) **sem mexer nas cabeças do lote**.
 - Ao vender, Finanças mostra o custo médio por cabeça, o lucro de cada venda e o card **Resultado das vendas**; vendas de lote sem preço ficam de fora e são contadas.
 - Sem mudança no Supabase: os campos seguem pela sincronização genérica.
+
+## Aluguel de pasto: renovação e forma de pagamento
+
+- Ao cadastrar o pasto alugado, escolha **Antecipado (começo do mês)** ou **No final do mês**: define o vencimento de cada parcela. Meses em branco = 1 mês.
+- Perto do fim do prazo (conforme o aviso configurado no Perfil) e depois dele, a tela do pasto pergunta **Você quer renovar?** e, se sim, por quantos meses. Os meses novos continuam logo depois do fim anterior; parcelas e pagamentos existentes não mudam. Sem renovar, o Início segue avisando que o prazo venceu.
+- Em Finanças, o aluguel só entra **depois de marcado como pago**, no mês da data do pagamento (antes entrava sozinho no mês do vencimento).

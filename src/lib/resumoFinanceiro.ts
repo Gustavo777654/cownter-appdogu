@@ -64,7 +64,7 @@ export function lancamentos(d: DadosFinanceiros, f: Filtro, hojeIso: string = ho
 
   for (const a of parcelasDeAluguel(d.pastos ?? [], hojeIso)) {
     if (!noPeriodo(a.data, f) || (f.pastoId && a.pastoId !== f.pastoId)) continue;
-    lista.push({ chave: `aluguel:${a.pastoId}:${a.data}`, data: a.data, entrada: false, valor: a.valor, categoria: CAT_ALUGUEL });
+    lista.push({ chave: `aluguel:${a.pastoId}:${a.indice}`, data: a.data, entrada: false, valor: a.valor, categoria: CAT_ALUGUEL });
   }
 
   if (!f.pastoId) {

@@ -79,12 +79,12 @@ export default function FinancasPage() {
     for (const a of parcelasDeAluguel(dados.pastos ?? [], hoje())) {
       if (!noPeriodo(a.data) || (pastoId && a.pastoId !== pastoId)) continue;
       itens.push({
-        chave: `aluguel-${a.pastoId}-${a.data}`,
+        chave: `aluguel-${a.pastoId}-${a.indice}`,
         data: a.data,
         criado: a.data,
         entrada: false,
         titulo: `${CAT_ALUGUEL}: ${a.pastoNome}`,
-        detalhe: "Aluguel mensal (lançado automaticamente)",
+        detalhe: `Parcela com vencimento em ${formatDataBR(a.vencimento)}`,
         valor: a.valor,
       });
     }

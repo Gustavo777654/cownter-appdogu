@@ -137,6 +137,8 @@ export interface AluguelPasto {
   reajustes?: { desde: string; valorMensal: number }[];
   /** Parcelas pagas: número da parcela ("0" = primeira, "1"...) → data do pagamento (YYYY-MM-DD). */
   pagamentos?: Record<string, string>;
+  /** Quando cada mês é pago: "antecipado" = no começo do mês (padrão); "final" = no fim do mês. */
+  pagamento?: "antecipado" | "final";
 }
 
 export interface Pasto extends Sincronizavel {

@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { desfazerPagamento, registrarPagamento } from "./aluguel";
+import { desfazerPagamento, registrarPagamento, renovarAluguel } from "./aluguel";
 import { ROTINAS, type TipoRotina } from "./rotinas";
 import type { AluguelPasto, Pasto, PastoInput, Nota, SituacaoPasto, Tarefa, NivelPasto } from "./types";
 import { hoje, uuid } from "./utils";
@@ -36,7 +36,8 @@ function limparAluguel(a: AluguelPasto | null | undefined): AluguelPasto | null 
   for (const [k, v] of Object.entries(a.pagamentos ?? {})) {
     if (/^\d+$/.test(k) && /^\d{4}-\d{2}-\d{2}$/.test(v)) pagamentos[k] = v;
   }
-  return { valorMensal: Math.round(a.valorMensal * 100) / 100, inicio: a.inicio, meses: a.meses, reajustes, pagamentos };
+  const pagamento = a.pagamento === "final" ? "final" : "antecipado";
+  return { valorMensal: Math.round(a.valorMensal * 100) / 100, inicio: a.inicio, meses: a.meses, reajustes, pagamentos, pagamento };
 }
 
 function limparPasto(input: PastoInput): PastoInput {
@@ -103,6 +104,17 @@ export async function marcarAluguelPago(pastoId: string, indice: number, pagoEm:
   if (!atual.aluguel) throw new Error("Este pasto não está marcado como alugado.");
   await db.pastos.update(pastoId, {
     aluguel: registrarPagamento(atual.aluguel, indice, pagoEm, hoje()),
+    updatedAt: agora(),
+    syncStatus: "pending",
+  });
+}
+
+/** Renova o aluguel: soma meses ao prazo (o novo prazo começa logo depois do fim do anterior). */
+export async function renovarAluguelPasto(pastoId: string, meses: number): Promise<void> {
+  const atual = await pastoPorId(pastoId);
+  if (!atual.aluguel) throw new Error("Este pasto não está marcado como alugado.");
+  await db.pastos.update(pastoId, {
+    aluguel: renovarAluguel(atual.aluguel, meses),
     updatedAt: agora(),
     syncStatus: "pending",
   });

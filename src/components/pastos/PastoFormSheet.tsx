@@ -20,6 +20,8 @@ interface PastoFormSheetProps {
   onCreated?: (pasto: Pasto) => void;
 }
 
+const FORMAS_PAGAMENTO = ["Antecipado (começo do mês)", "No final do mês"] as const;
+
 export function PastoFormSheet({ open, pasto, onClose, onCreated }: PastoFormSheetProps) {
   const editando = !!pasto;
   const [nome, setNome] = useState("");
@@ -29,6 +31,7 @@ export function PastoFormSheet({ open, pasto, onClose, onCreated }: PastoFormShe
   const [valorAluguel, setValorAluguel] = useState("");
   const [inicioAluguel, setInicioAluguel] = useState(hoje());
   const [mesesAluguel, setMesesAluguel] = useState("");
+  const [pagamentoAluguel, setPagamentoAluguel] = useState<(typeof FORMAS_PAGAMENTO)[number]>(FORMAS_PAGAMENTO[0]);
   const [aplicar, setAplicar] = useState<"inicio" | "data">("data");
   const [desdeReajuste, setDesdeReajuste] = useState(hoje());
   const [erro, setErro] = useState("");
@@ -45,6 +48,7 @@ export function PastoFormSheet({ open, pasto, onClose, onCreated }: PastoFormShe
     setDesdeReajuste(hoje());
     setInicioAluguel(pasto?.aluguel?.inicio ?? hoje());
     setMesesAluguel(textoNumero(pasto?.aluguel?.meses));
+    setPagamentoAluguel(pasto?.aluguel?.pagamento === "final" ? FORMAS_PAGAMENTO[1] : FORMAS_PAGAMENTO[0]);
     setErro("");
     setSalvando(false);
   }, [open, pasto]);
@@ -78,11 +82,12 @@ export function PastoFormSheet({ open, pasto, onClose, onCreated }: PastoFormShe
         setErro("Meses do aluguel: use um número inteiro ou deixe em branco.");
         return;
       }
+      const pagamento = pagamentoAluguel === FORMAS_PAGAMENTO[1] ? "final" : "antecipado";
       const antigo = pasto?.aluguel;
       if (!antigo) {
-        aluguel = { valorMensal: valor, inicio: inicioAluguel, meses, reajustes: [] };
+        aluguel = { valorMensal: valor, inicio: inicioAluguel, meses, reajustes: [], pagamento };
       } else {
-        aluguel = { ...antigo, inicio: inicioAluguel, meses };
+        aluguel = { ...antigo, inicio: inicioAluguel, meses, pagamento };
         if (valor !== valorDaParcela(antigo, hoje())) {
           if (aplicar === "data" && !desdeReajuste) {
             setErro("Informe a partir de que data o novo valor vale.");
@@ -250,11 +255,12 @@ export function PastoFormSheet({ open, pasto, onClose, onCreated }: PastoFormShe
                   inputMode="numeric"
                   value={mesesAluguel}
                   onChange={(e) => setMesesAluguel(e.target.value)}
-                  placeholder="Em branco = 1 mês"
+                  placeholder="Em branco = 1 mês (dá para renovar depois)"
                 />
               </div>
+              <Segmented label="Quando você paga cada mês" value={pagamentoAluguel} options={FORMAS_PAGAMENTO} onChange={setPagamentoAluguel} />
               <p className="text-xs text-dark/55">
-                Cada mês do aluguel vira uma despesa em Finanças. O app avisa no Início 7 dias antes de terminar.
+                O gasto entra em Finanças no mês em que você marcar a parcela como paga. Perto do fim do prazo o app avisa e pergunta se você quer renovar.
               </p>
             </div>
           )}
