@@ -12,6 +12,7 @@ import { fimDoAluguel, mesesDoAluguel, valorDaParcela } from "@/lib/aluguel";
 import { formatarReais } from "@/lib/recursos";
 import { Segmented } from "@/components/ui/Segmented";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
+import { RenovarAluguel } from "@/components/pastos/RenovarAluguel";
 import { AluguelParcelas } from "@/components/pastos/AluguelParcelas";
 import { LotesDoPasto } from "@/components/pastos/LotesDoPasto";
 import { NotasSection } from "@/components/pastos/NotasSection";
@@ -122,6 +123,7 @@ export default function PastoPage() {
             <p>
               De {formatDataBR(pasto.aluguel.inicio)} até {formatDataBR(fimDoAluguel(pasto.aluguel) ?? pasto.aluguel.inicio)}
             </p>
+            <RenovarAluguel pasto={pasto} />
             <AluguelParcelas pasto={pasto} />
           </section>
         )}

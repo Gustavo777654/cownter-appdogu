@@ -2,7 +2,7 @@
 import "fake-indexeddb/auto";
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
-import { coletarAlertasAluguel, fimDoAluguel, parcelasAteHoje } from "./aluguel";
+import { coletarAlertasAluguel, fimDoAluguel, parcelasDoAluguel, renovarAluguel, vencimentoDaParcela } from "./aluguel";
 import { db } from "./db";
 import { atualizarPasto, criarPasto } from "./pastos";
 import type { AluguelPasto } from "./types";
@@ -20,22 +20,52 @@ describe("aluguel de pasto", () => {
     assert.equal(fimDoAluguel({ valorMensal: 100, inicio: "2026-03-10", meses: 6 }), "2026-09-09");
   });
 
-  it("gera uma parcela por mês já começado, sem passar de hoje", () => {
-    const a = { valorMensal: 1500, inicio: "2026-08-15", meses: 6 };
-    assert.deepEqual(parcelasAteHoje(a, "2026-11-05"), ["2026-08-15", "2026-09-15", "2026-10-15"]);
-    assert.deepEqual(parcelasAteHoje(a, "2026-08-14"), []);
-    assert.equal(parcelasAteHoje(a, "2027-12-31").length, 6);
+  it("antecipado vence no começo de cada mês; no final vence no último dia", () => {
+    const a: AluguelPasto = { valorMensal: 1500, inicio: "2026-11-01", meses: 3 };
+    assert.deepEqual(parcelasDoAluguel(a).map((p) => p.vencimento), ["2026-11-01", "2026-12-01", "2027-01-01"]);
+    const f: AluguelPasto = { ...a, pagamento: "final" };
+    assert.deepEqual(parcelasDoAluguel(f).map((p) => p.vencimento), ["2026-11-30", "2026-12-31", "2027-01-31"]);
+    assert.equal(vencimentoDaParcela({ ...f, inicio: "2026-03-10" }, 0), "2026-04-09");
   });
 
-  it("vira despesa Aluguel de pasto em Finanças, por mês e por pasto", () => {
-    const d = dados([{ id: "p1", nome: "Norte", deletedAt: null, aluguel: { valorMensal: 1500, inicio: "2026-09-10", meses: 3 } }]);
+  it("o gasto só entra em Finanças depois de pago, no mês da data do pagamento", () => {
+    const aluguel: AluguelPasto = { valorMensal: 1500, inicio: "2026-09-10", meses: 3, pagamentos: { "0": "2026-09-08", "1": "2026-11-02" } };
+    const d = dados([{ id: "p1", nome: "Norte", deletedAt: null, aluguel }]);
     const hojeIso = "2026-11-05";
     const out = lancamentos(d, { ano: 2026, mes: null, pastoId: null }, hojeIso);
-    assert.equal(out.length, 2);
-    assert.equal(lancamentos(d, { ano: 2026, mes: 10, pastoId: null }, hojeIso).length, 1);
+    assert.equal(out.length, 2); // a parcela de novembro ainda não foi paga
+    assert.equal(lancamentos(d, { ano: 2026, mes: 9, pastoId: null }, hojeIso).length, 1);
+    assert.equal(lancamentos(d, { ano: 2026, mes: 10, pastoId: null }, hojeIso).length, 0); // vencida em outubro, paga em novembro
+    assert.equal(lancamentos(d, { ano: 2026, mes: 11, pastoId: null }, hojeIso).length, 1);
     assert.equal(lancamentos(d, { ano: 2026, mes: null, pastoId: "outro" }, hojeIso).length, 0);
     assert.deepEqual(saidasPorCategoria(out), [{ categoria: "Aluguel de pasto", valor: 3000 }]);
     assert.deepEqual(custoPorPasto(d, { ano: 2026, mes: null }, hojeIso), [{ pastoId: "p1", valor: 3000 }]);
+  });
+
+  it("duas parcelas pagas no mesmo dia viram dois lançamentos com chaves diferentes", () => {
+    const aluguel: AluguelPasto = { valorMensal: 100, inicio: "2026-09-01", meses: 3, pagamentos: { "0": "2026-11-02", "1": "2026-11-02" } };
+    const out = lancamentos(dados([{ id: "p1", nome: "N", deletedAt: null, aluguel }]), { ano: 2026, mes: 11, pastoId: null }, "2026-11-05");
+    assert.equal(out.length, 2);
+    assert.notEqual(out[0].chave, out[1].chave);
+  });
+
+  it("renovar soma meses ao prazo e valida", () => {
+    const a: AluguelPasto = { valorMensal: 100, inicio: "2026-11-01", meses: null, pagamentos: { "0": "2026-11-01" } };
+    const r = renovarAluguel(a, 12);
+    assert.equal(r.meses, 13);
+    assert.deepEqual(r.pagamentos, { "0": "2026-11-01" });
+    assert.equal(fimDoAluguel(r), "2027-11-30");
+    assert.equal(parcelasDoAluguel(r).length, 13);
+    assert.throws(() => renovarAluguel(a, 0));
+    assert.throws(() => renovarAluguel(a, 1.5));
+    assert.throws(() => renovarAluguel(r, 120));
+  });
+
+  it("o pagamento (antecipado/final) é salvo no pasto", async () => {
+    const p = await criarPasto({ nome: "Leste", areaHa: null, nivelPasto: "Alto", aluguel: { valorMensal: 800, inicio: "2026-11-01", meses: null, pagamento: "final" } });
+    assert.equal((await db.pastos.get(p.id))?.aluguel?.pagamento, "final");
+    const q = await criarPasto({ nome: "Oeste", areaHa: null, nivelPasto: "Alto", aluguel: { valorMensal: 800, inicio: "2026-11-01", meses: null } });
+    assert.equal((await db.pastos.get(q.id))?.aluguel?.pagamento, "antecipado");
   });
 
   it("avisa 7 dias antes de terminar e depois que venceu", () => {
@@ -88,9 +118,9 @@ describe("reajuste do aluguel", () => {
   });
   it("Finanças usa o valor de cada mês", async () => {
     const { reajustarAluguel } = await import("./aluguel");
-    const a = reajustarAluguel(base, 1200, { desde: "2026-10-10" });
+    const a = { ...reajustarAluguel(base, 1200, { desde: "2026-10-10" }), pagamentos: { "0": "2026-09-10", "1": "2026-10-10", "2": "2026-11-10", "3": "2026-12-10" } };
     const d = dados([{ id: "p", nome: "N", deletedAt: null, aluguel: a }]);
-    const l = lancamentos(d, { ano: 2026, mes: null, pastoId: null }, "2026-11-12");
+    const l = lancamentos(d, { ano: 2026, mes: null, pastoId: null }, "2026-12-12");
     assert.deepEqual(l.map((x) => x.valor), [1000, 1000, 1200, 1200]);
   });
 });

@@ -2,6 +2,7 @@ import { addDias, addMeses, diasEntre } from "./rotinas";
 import type { AluguelPasto, Pasto } from "./types";
 
 // Aluguel de pasto: valor por mês, data de início e quantidade de meses (vazio = 1 mês).
+// Cada mês é pago no começo (antecipado) ou no fim do mês. O gasto só entra em Finanças depois de pago.
 
 export const CAT_ALUGUEL = "Aluguel de pasto";
 export const JANELA_ALUGUEL_DIAS = 7;
@@ -34,15 +35,21 @@ export function fimDoAluguel(a: AluguelPasto): string | null {
   return depois ? addDias(depois, -1) : null;
 }
 
-/** Datas das parcelas mensais já começadas até hoje (a primeira é a data de início). */
-export function parcelasAteHoje(a: AluguelPasto, hojeIso: string): string[] {
-  const datas: string[] = [];
-  for (let k = 0; k < mesesDoAluguel(a); k++) {
-    const d = addMeses(a.inicio, k);
-    if (!d || d > hojeIso) break;
-    datas.push(d);
+/** Vencimento da parcela k: no começo do mês (antecipado) ou no último dia do mês (final). */
+export function vencimentoDaParcela(a: AluguelPasto, k: number): string | null {
+  if (a.pagamento === "final") {
+    const prox = addMeses(a.inicio, k + 1);
+    return prox ? addDias(prox, -1) : null;
   }
-  return datas;
+  return addMeses(a.inicio, k);
+}
+
+/** Soma `meses` ao prazo do aluguel (renovação): o novo prazo continua logo depois do fim do anterior. */
+export function renovarAluguel(a: AluguelPasto, meses: number): AluguelPasto {
+  if (!Number.isInteger(meses) || meses < 1) throw new Error("Informe por quantos meses (número inteiro, 1 ou mais).");
+  const total = mesesDoAluguel(a) + meses;
+  if (total > 120) throw new Error("O aluguel não pode passar de 120 meses no total.");
+  return { ...a, meses: total };
 }
 
 /** Situação de cada parcela mensal do aluguel (do início ao fim, inclusive as futuras). */
@@ -56,7 +63,7 @@ export interface StatusParcela {
 export function parcelasDoAluguel(a: AluguelPasto): StatusParcela[] {
   const lista: StatusParcela[] = [];
   for (let k = 0; k < mesesDoAluguel(a); k++) {
-    const vencimento = addMeses(a.inicio, k);
+    const vencimento = vencimentoDaParcela(a, k);
     if (!vencimento) break;
     lista.push({ indice: k, vencimento, valor: valorDaParcela(a, vencimento), pagoEm: a.pagamentos?.[String(k)] ?? null });
   }
@@ -87,7 +94,11 @@ export function desfazerPagamento(a: AluguelPasto, indice: number): AluguelPasto
 export interface ParcelaAluguel {
   pastoId: string;
   pastoNome: string;
+  /** Número da parcela (0 = primeira). */
+  indice: number;
+  /** Data em que foi paga: é ela que decide o mês em Finanças. */
   data: string;
+  vencimento: string;
   valor: number;
 }
 
@@ -98,8 +109,9 @@ export function parcelasDeAluguel(
   const lista: ParcelaAluguel[] = [];
   for (const p of pastos) {
     if (p.deletedAt || !p.aluguel) continue;
-    for (const data of parcelasAteHoje(p.aluguel, hojeIso)) {
-      lista.push({ pastoId: p.id, pastoNome: p.nome, data, valor: valorDaParcela(p.aluguel, data) });
+    for (const parcela of parcelasDoAluguel(p.aluguel)) {
+      if (!parcela.pagoEm || parcela.pagoEm > hojeIso) continue;
+      lista.push({ pastoId: p.id, pastoNome: p.nome, indice: parcela.indice, data: parcela.pagoEm, vencimento: parcela.vencimento, valor: parcela.valor });
     }
   }
   return lista;
